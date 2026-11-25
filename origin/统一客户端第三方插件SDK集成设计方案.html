@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>统一客户端第三方插件 SDK 集成设计方案（v1.2）</title>
+<style>
+:root{
+  --bg:#0b1220; --panel:#121c33; --line:#233457; --line2:#2e4573;
+  --txt:#dbe6f5; --txt2:#93a7c8; --txt3:#5f7396;
+  --accent:#31d0ff; --accent2:#7c5cff;
+  --red:#ff5c74; --orange:#ffb03a; --green:#3ee08f; --yellow:#ffd257;
+  --mono:'Consolas','JetBrains Mono',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--txt);font-family:"Microsoft YaHei","PingFang SC","Segoe UI",sans-serif;line-height:1.75;font-size:14px}
+.wrap{max-width:1240px;margin:0 auto;padding:28px 34px 60px}
+.hero{position:relative;border:1px solid var(--line);border-radius:14px;padding:36px 40px;background:linear-gradient(135deg,#101c38 0%,#0c1526 55%,#141d44 100%);overflow:hidden}
+.hero::before{content:"";position:absolute;inset:0;background:
+ radial-gradient(620px 220px at 88% 0%,rgba(124,92,255,.20),transparent 60%),
+ radial-gradient(520px 240px at 8% 100%,rgba(49,208,255,.15),transparent 60%);pointer-events:none}
+.hero h1{font-size:27px;letter-spacing:2px;background:linear-gradient(90deg,#e8f4ff,#31d0ff 55%,#7c5cff);-webkit-background-clip:text;background-clip:text;color:transparent;position:relative}
+.hero .sub{color:var(--txt2);margin-top:8px;font-size:13.5px;position:relative}
+.meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px;position:relative}
+.meta span{border:1px solid var(--line2);border-radius:6px;padding:3px 12px;font-size:12px;color:var(--txt2);background:rgba(15,24,48,.7)}
+.meta b{color:var(--accent);font-weight:600}
+h2.sec{margin:48px 0 6px;font-size:19px;letter-spacing:1px;display:flex;align-items:center;gap:10px}
+h2.sec .no{font-family:var(--mono);font-size:12px;color:var(--accent);border:1px solid var(--line2);border-radius:4px;padding:1px 8px;background:rgba(49,208,255,.08)}
+h2.sec::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--line2),transparent)}
+.secdesc{color:var(--txt3);font-size:12.5px;margin-bottom:16px}
+h3.sub{margin:22px 0 8px;font-size:15px;color:#eaf3ff;border-left:3px solid var(--accent);padding-left:10px}
+.card{border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:16px 18px}
+.tag{font-size:11px;border-radius:4px;padding:1px 8px;white-space:nowrap;font-weight:600}
+.t-red{background:rgba(255,92,116,.15);color:var(--red);border:1px solid rgba(255,92,116,.4)}
+.t-org{background:rgba(255,176,58,.14);color:var(--orange);border:1px solid rgba(255,176,58,.4)}
+.t-grn{background:rgba(62,224,143,.13);color:var(--green);border:1px solid rgba(62,224,143,.4)}
+.t-blu{background:rgba(49,208,255,.12);color:var(--accent);border:1px solid rgba(49,208,255,.4)}
+.t-pur{background:rgba(124,92,255,.13);color:#a995ff;border:1px solid rgba(124,92,255,.4)}
+table{width:100%;border-collapse:collapse;margin:14px 0 6px;font-size:12.5px}
+th{background:linear-gradient(180deg,#182645,#131f3a);color:#cfe0f7;border:1px solid var(--line2);padding:9px 10px;text-align:left;font-weight:600;white-space:nowrap}
+td{border:1px solid var(--line);padding:8px 10px;color:var(--txt2);vertical-align:top}
+tr:nth-child(even) td{background:rgba(18,28,51,.5)}
+tr:hover td{background:rgba(49,208,255,.05)}
+td.k{color:#cfe0f7;font-weight:600;white-space:nowrap;background:rgba(24,38,69,.45)!important}
+.rec{color:var(--green);font-weight:700}.bad{color:var(--red);font-weight:700}.mid{color:var(--orange);font-weight:600}
+.note{border-left:3px solid var(--accent);background:rgba(49,208,255,.06);border-radius:0 8px 8px 0;padding:12px 16px;color:var(--txt2);font-size:12.5px;margin:14px 0}
+.note.warn{border-left-color:var(--orange);background:rgba(255,176,58,.07)}
+.note.risk{border-left-color:var(--red);background:rgba(255,92,116,.07)}
+.note.grn{border-left-color:var(--green);background:rgba(62,224,143,.06)}
+.arch{margin:16px 0;border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:8px}
+footer{margin-top:50px;border-top:1px solid var(--line);padding-top:14px;color:var(--txt3);font-size:12px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+code{font-family:var(--mono);font-size:11.5px;color:#8fd7ff;background:rgba(49,208,255,.08);border:1px solid rgba(49,208,255,.2);border-radius:3px;padding:0 4px}
+pre.code{font-family:var(--mono);font-size:11.5px;color:#a8d8ff;background:#0c1526;border:1px solid var(--line2);border-radius:8px;padding:14px 16px;overflow-x:auto;line-height:1.55;margin:12px 0;white-space:pre}
+pre.code .cm{color:#5f7396}
+.toc{margin-top:24px}
+.toc .ct{font-size:14px;font-weight:700;color:#eaf3ff}
+.toc .small{font-size:11.5px;color:var(--txt3);font-weight:400;margin-left:8px}
+.toc .toclist{columns:3;column-gap:28px;margin-top:10px}
+.toc .tocitem{break-inside:avoid;margin-bottom:8px}
+.toc a{display:block;text-decoration:none;line-height:1.85}
+.toc a.l1{color:#dbe6f5;font-size:12.5px;font-weight:600}
+.toc a.l2{padding-left:16px;color:var(--txt3);font-size:11.5px}
+.toc a:hover{color:var(--accent)}
+.toc .no2{font-family:var(--mono);color:var(--accent);margin-right:6px;font-size:11px}
+@media(max-width:980px){.toc .toclist{columns:1}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="hero">
+  <h1>统一客户端 · 第三方插件 SDK 集成设计方案</h1>
+  <div class="sub">统一客户端作为集成宿主接入方寸 AIDR / 安天杀毒 AV 引擎 SDK · 覆盖集成形态决策 / 适配层 / GUI 融合 / 日志采集 / 指令交互 / 升级与资源控制</div>
+  <div class="meta">
+    <span>版本：<b>v1.2</b>（03 总体架构图重绘：EDR/AIDR 子进程一等公民 · Agent Core 三职责 · GUI 壳包装两插件界面）</span>
+    <span>上游文档：<b>《落地方案设计 v1.2》 / 《Supervisor 插件日志采集专项设计 v1.0》 / 《开源 EDR 框架选型评估报告 v3.9》 / 《iNode 插件系统开发指南 1.0.0》</b></span>
+    <span>集成对象：<b>方寸 AIDR SDK / 安天 AV 引擎 SDK</b></span>
+    <span>日期：<b>2026-11-24</b></span>
+  </div>
+</div>
+
+
+
+<div class="card toc" id="toc">
+  <div class="ct">方案目录 <span class="small">点击跳转 · 共 17 章</span></div>
+  <div class="toclist">
+<div class="tocitem"><a class="l1" href="#sec00"><span class="no2">00</span>设计摘要</a>
+</div>
+<div class="tocitem"><a class="l1" href="#sec01"><span class="no2">01</span>集成背景与 SDK 对象分析</a>
+<a class="l2" href="#s1-1">1.1 统一客户端的容器定位</a>
+<a class="l2" href="#s1-2">1.2 方寸 AIDR：能力与接口形态</a>
+<a class="l2" href="#s1-3">1.3 安天 AV：能力与接口形态</a>
+<a class="l2" href="#s1-4">1.4 集成约束</a>
+</div>
+<div class="tocitem"><a class="l1" href="#sec02"><span class="no2">02</span>集成形态决策：适配进程隔离</a>
+</div>
+<div class="tocitem"><a class="l1" href="#sec03"><span class="no2">03</span>总体架构</a>
+</div>
+<div class="tocitem"><a class="l1" href="#sec04"><span class="no2">04</span>适配层设计：契约映射</a>
+<a class="l2" href="#s4-1">4.1 契约维度映射表</a>
+<a class="l2" href="#s4-2">4.2 回调桥接模式（两个适配器共用）</a>
+<a class="l2" href="#s4-3">4.3 SDK 私有 API 封装原则</a>
+<a class="l2" href="#s4-4">4.4 声明式插件配置（对齐 iNode plugin_config.jsonc）</a>
+<a class="l2" href="#s4-5">4.5 插件自治与安全基线的边界</a>
+</div>
+<div class="tocitem"><a class="l1" href="#sec05"><span class="no2">05</span>进程生命周期与守护</a>
+</div>
+<div class="tocitem"><a class="l1" href="#sec06"><span class="no2">06</span>GUI 融合设计</a>
+<a class="l2" href="#s6-1">6.1 UI 进程形态与选型建议</a>
+<a class="l2" href="#s6-2">6.2 GUI 融合架构</a>
+<a class="l2" href="#s6-3">6.3 插件状态卡模型</a>
+<a class="l2" href="#s6-4">6.4 统一告警流与操作入口</a>
+<a class="l2" href="#s6-5">6.5 通知策略</a>
+<a class="l2" href="#s6-6">6.6 插件窗口宿主（ui / mix 类型插件）</a>
+</div>
+<div class="tocitem"><a class="l1" href="#sec07"><span class="no2">07</span>日志与数据采集设计</a>
+<a class="l2" href="#s7-1">7.1 采集源注册表（supervisor.toml 增量）</a>
+<a class="l2" href="#s7-2">7.2 各产出与队列分级</a>
+<a class="l2" href="#s7-3">7.3 与专项设计的衔接清单</a>
+<a class="l2" href="#s7-4">7.4 LogPath 约定与采集源自动注册（对齐 iNode 日志管理）</a>
+</div>
+<div class="tocitem"><a class="l1" href="#sec08"><span class="no2">08</span>指令交互设计</a>
+<a class="l2" href="#s8-1">8.1 控制面链路</a>
+<a class="l2" href="#s8-2">8.2 指令信封</a>
+<a class="l2" href="#s8-3">8.3 指令目录</a>
+<a class="l2" href="#s8-4">8.4 长任务模型（扫描 / 升级 / 模型更新）</a>
+<a class="l2" href="#s8-5">8.5 指令交互时序（以平台下发全盘扫描为例）</a>
+</div>
+<div class="tocitem"><a class="l1" href="#sec09"><span class="no2">09</span>统一事件模型与字段映射</a>
+<a class="l2" href="#s9-1">9.1 统一信封</a>
+<a class="l2" href="#s9-2">9.2 AV 病毒事件字段映射</a>
+<a class="l2" href="#s9-3">9.3 AIDR 事件字段映射</a>
+</div>
+<div class="tocitem"><a class="l1" href="#sec10"><span class="no2">10</span>升级与配置管理</a>
+<a class="l2" href="#s10-1">10.1 插件包规范与安装流程（对齐 iNode）</a>
+<a class="l2" href="#s10-2">10.2 资产升级通道</a>
+</div>
+<div class="tocitem"><a class="l1" href="#sec11"><span class="no2">11</span>安全与权限</a>
+</div>
+<div class="tocitem"><a class="l1" href="#sec12"><span class="no2">12</span>资源控制与共存</a>
+<a class="l2" href="#s12-1">12.1 资源配额与模式抑制</a>
+<a class="l2" href="#s12-2">12.2 与第三方 AV 共存</a>
+</div>
+<div class="tocitem"><a class="l1" href="#sec13"><span class="no2">13</span>兼容性矩阵</a>
+</div>
+<div class="tocitem"><a class="l1" href="#sec14"><span class="no2">14</span>实施计划与工作量</a>
+</div>
+<div class="tocitem"><a class="l1" href="#sec15"><span class="no2">15</span>风险与对策</a>
+</div>
+<div class="tocitem"><a class="l1" href="#sec16"><span class="no2">16</span>附录：文档关系与修订记录</a>
+</div>
+  </div>
+</div>
+
+<!-- ================= 00 ================= -->
+<h2 class="sec" id="sec00"><span class="no">00</span>设计摘要</h2>
+<div class="secdesc">一句话方案：第三方 SDK 一律以「独立适配进程 + 统一适配层」形态接入统一客户端，GUI 不直连任何 SDK，日志采集复用统一文件采集器，指令交互收敛为一条控制面指令通道。</div>
+
+<table>
+<tr><th>设计域</th><th>核心结论</th><th>优先级</th></tr>
+<tr><td class="k">集成形态</td><td>方寸 AIDR 与安天 AV 引擎均不进宿主进程：由 Supervisor 拉起独立适配进程，SDK 库只加载进适配进程内，崩溃/泄漏/升级被进程边界隔离</td><td><span class="tag t-red">P0</span></td></tr>
+<tr><td class="k">适配层</td><td>适配进程对外只暴露统一插件契约（HELLO 注册 / 文件交付 / 指令响应 / 心跳），SDK 私有 API 不外溢；AV 与 AIDR 适配器按同一契约实现，可替换可扩展</td><td><span class="tag t-red">P0</span></td></tr>
+<tr><td class="k">GUI 融合</td><td>UI 独立进程，只通过本地回环 API 读写 Agent Core 缓存态；插件状态卡 / 统一告警流 / 隔离区 / 任务中心四类融合组件；UI 崩溃不影响防护</td><td><span class="tag t-red">P0</span></td></tr>
+<tr><td class="k">日志采集</td><td>零新增通道：SDK 事件由适配器落盘为 JSONL / 快照文件，完全复用《日志采集专项设计》三类 Reader + 三级队列 + WAL 管道</td><td><span class="tag t-red">P0</span></td></tr>
+<tr><td class="k">指令交互</td><td>平台 → WSS → Agent Core → IPC → 适配器 → SDK API 单链路；扫描/病毒库升级为异步长任务（task_id + 进度事件 + 回执），指令可审计可超时可取消</td><td><span class="tag t-red">P0</span></td></tr>
+<tr><td class="k">插件规范对齐</td><td>采纳 iNode 插件系统声明式配置（plugin_config.jsonc）与 ZIP 打包安装流程，扩展 Security / DataSources 两个安全区块；插件类型采纳 ui / background / mix 三分类，AV / AIDR 适配进程为 background 型；插件自治原则保留但收紧安全基线（禁自建上报通道、网络通信须声明）</td><td><span class="tag t-red">P0</span></td></tr>
+<tr><td class="k">升级与资源</td><td>病毒库 / AI 模型独立升级通道 + 失败回滚 + 灰度；扫描任务受 CPU/IO 配额约束，支持游戏/演示模式全局抑制</td><td><span class="tag t-org">P1</span></td></tr>
+<tr><td class="k">共存与兼容</td><td>与第三方 AV 共存策略（被动模式）、OS 版本矩阵、驱动级协同例外说明</td><td><span class="tag t-org">P1</span></td></tr>
+</table>
+
+<div class="note grn">本方案是端点三层架构（统一管控平台 / 网关层 / 统一客户端）中「统一客户端」容器层的集成设计。终端侧自研 Supervisor、Rustinel、文件采集管道均沿用既有文档结论，本文只新增「第三方 SDK 如何进来」这一层，不重复上游内容。</div>
+
+<!-- ================= 01 ================= -->
+<h2 class="sec" id="sec01"><span class="no">01</span>集成背景与 SDK 对象分析</h2>
+<div class="secdesc">明确统一客户端的容器定位、两个第三方 SDK 的能力边界与接口形态，以及闭源二进制带来的集成约束。</div>
+
+<h3 class="sub" id="s1-1">1.1 统一客户端的容器定位</h3>
+<p>统一客户端是端侧唯一的用户可见实体，内部按六大模块组织；AI 防护（自研 Supervisor + Rustinel + AIDR）是其中「AI Agent 防护」模块的落地形态。本方案把方寸 AIDR、安天 AV 作为<u>第三方能力供给方</u>接入，统一客户端自身的模块划分不变：</p>
+
+<table>
+<tr><th>模块</th><th>能力归属</th><th>与本次集成的关系</th></tr>
+<tr><td class="k">数据安全</td><td>自研（防泄漏 / 加密 / 外设管控）</td><td>不受影响，仅共享 UI 壳与采集管道</td></tr>
+<tr><td class="k">桌面管控</td><td>自研</td><td>不受影响</td></tr>
+<tr><td class="k">网络管理</td><td>自研（零信任客户端 / SWG）</td><td>不受影响</td></tr>
+<tr><td class="k">安全防护</td><td><span class="tag t-org">本次集成</span> 安天 AV 引擎（病毒查杀 / 实时防护）</td><td>AV 引擎为该模块核心检测源之一</td></tr>
+<tr><td class="k">风险运营</td><td>自研（与管侧 Agentic SOC 联动）</td><td>消费 AV / AIDR 产出的统一事件</td></tr>
+<tr><td class="k">AI Agent 防护</td><td><span class="tag t-org">本次集成</span> 方寸 AIDR SDK（L2 推理 / L3 工具调用 / L4 数据检测响应）</td><td>与自研 Supervisor、Rustinel 同模块协同</td></tr>
+</table>
+
+<h3 class="sub" id="s1-2">1.2 方寸 AIDR：能力与接口形态</h3>
+<table>
+<tr><th>维度</th><th>事实 / 设计假设</th></tr>
+<tr><td class="k">能力范围</td><td>AI 应用与 Agent 运行时检测响应：Prompt 注入检测、工具调用风险识别（L3）、敏感数据外发识别（L4）、风险会话抑制</td></tr>
+<tr><td class="k">交付形态</td><td>本地 SDK（C/C++ 动态库）+ 模型/策略包文件 + 本地检测服务；推理可本地或近端</td></tr>
+<tr><td class="k">集成接口</td><td>检测 API（同步调用）、事件回调（异步通知）、策略/模型加载 API、会话上下文注入接口</td></tr>
+<tr><td class="k">产出形态</td><td>回调返回检测结果（风险等级 / 类别 / 证据），可适配为 JSONL 告警文件落盘</td></tr>
+<tr><td class="k">关联键</td><td>session_id / trace_id，与网关侧 AI 全链路跟踪审计共用链路 ID</td></tr>
+</table>
+<div class="note">AIDR 检测是「调用式」的：由 AI Agent 防护模块的会话采集点（网关代理 / 本地代理）触发检测调用，AIDR SDK 返回判定 → 适配器转事件 → 文件交付。这与 AV 的「引擎自主扫描」不同，指令面以策略下发为主、任务型指令少。</div>
+
+<h3 class="sub" id="s1-3">1.3 安天 AV：能力与接口形态</h3>
+<table>
+<tr><th>维度</th><th>事实 / 设计假设</th></tr>
+<tr><td class="k">能力范围</td><td>病毒查杀（按需扫描 / 实时防护）、隔离区、白名单、特征库升级；移动端病毒防护能力可补齐防火墙侧规划差距项</td></tr>
+<tr><td class="k">交付形态</td><td>引擎库（DLL / so）+ 特征库文件 + 可选内核 minifilter 驱动（实时防护）</td></tr>
+<tr><td class="k">集成接口</td><td>扫描 API（同步 / 异步）、实时防护回调、隔离区管理 API、特征库升级 API、引擎配置</td></tr>
+<tr><td class="k">产出形态</td><td>扫描结果报告（任务型，整文件）、病毒事件即时通知（回调）、引擎运行日志</td></tr>
+<tr><td class="k">授权形态</td><td>按终端授权（授权文件 / 许可证），特征库升级需凭证校验</td></tr>
+</table>
+<div class="note warn">AV 是「引擎自主 + 任务驱动」型：实时防护由驱动/回调持续触发，按需扫描是典型长任务（分钟~小时级），指令面以任务型指令为主，必须有任务句柄 / 进度 / 取消 / 限速模型。</div>
+
+<h3 class="sub" id="s1-4">1.4 集成约束</h3>
+<table>
+<tr><th>约束</th><th>说明</th><th>设计响应</th></tr>
+<tr><td class="k">闭源二进制</td><td>两个 SDK 均为闭源库，无法审计内部行为，崩溃 / 泄漏 / 兼容问题只能隔离不能修复</td><td>进程边界隔离 + 崩溃自动重启 + 独立 dump 收集</td></tr>
+<tr><td class="k">授权与合规</td><td>SDK 授权文件、升级凭证是敏感资产</td><td>凭证由 Agent Core 统一保管，适配进程按需领取，不落明文配置</td></tr>
+<tr><td class="k">性能不可控</td><td>全盘扫描 / 模型推理资源占用由引擎决定</td><td>进程级 CPU/IO 配额（Job Object / cgroups）+ 平台可下发限速</td></tr>
+<tr><td class="k">版本演进</td><td>SDK 会独立升级，接口可能不兼容</td><td>适配进程独立升级 + 契约版本协商（HELLO 中报 contract_ver）</td></tr>
+<tr><td class="k">驱动级协同</td><td>AV 实时防护需要内核驱动配合，驱动与引擎库可能强绑定</td><td>驱动层例外：允许驱动直接通知适配进程；引擎库本身仍不进宿主</td></tr>
+</table>
+
+<!-- ================= 02 ================= -->
+<h2 class="sec" id="sec02"><span class="no">02</span>集成形态决策：适配进程隔离</h2>
+<div class="secdesc">核心决策：SDK 进程内加载（in-process）与独立适配进程加载（out-of-process）的六切面对比，结论是一律 out-of-process。</div>
+
+<table>
+<tr><th>切面</th><th>in-process（宿主进程直接加载 SDK）</th><th>out-of-process（独立适配进程加载 SDK）</th></tr>
+<tr><td class="k">崩溃隔离</td><td class="bad">SDK 崩溃 = 统一客户端整体崩溃，防护全下线</td><td class="rec">适配进程崩溃可自动重启，宿主与其它插件不受影响</td></tr>
+<tr><td class="k">资源泄漏</td><td class="bad">闭源库内存/句柄泄漏直接拖垮宿主，无法定位</td><td class="rec">进程边界兜底，泄漏可观测（进程指标）可定点重启</td></tr>
+<tr><td class="k">性能开销</td><td class="rec">无 IPC 开销</td><td class="mid">有 IPC 开销，但日志走文件交付零 IPC、指令低频，实测影响可忽略</td></tr>
+<tr><td class="k">独立升级</td><td class="bad">SDK 升级必须重启宿主进程，防护中断</td><td class="rec">适配进程独立升级 / 重启，防护面其余部分不中断</td></tr>
+<tr><td class="k">调试定位</td><td class="bad">宿主崩溃 dump 混杂三方符号，责任难界定</td><td class="rec">独立 dump 独立符号，厂商责任边界清晰</td></tr>
+<tr><td class="k">多引擎扩展</td><td class="bad">第二个引擎进来重复承担全部风险</td><td class="rec">新增引擎 = 新增一个适配进程，宿主零改动</td></tr>
+</table>
+
+<div class="note grn"><b>决策结论（P0）</b>：统一客户端宿主进程（UI / Agent Core）永不加载任何第三方 SDK。每个第三方 SDK 对应一个独立适配进程，由 Supervisor 托管。唯一例外是 AV 内核驱动（实时防护必需），驱动与适配进程直连，宿主与 UI 仍不接触。</div>
+
+<div class="note warn"><b>代价与接受理由</b>：多两个常驻进程（约 30~80MB 内存 / 进程，取决于引擎）。相比 in-process 的「一次崩溃全下线 + 升级必重启 + 责任不可分」，这是值得付出的代价；且适配进程可按平台画像配置为按需拉起（如仅启用 AV 时才拉起 AV 适配进程）。</div>
+
+<!-- ================= 03 ================= -->
+<h2 class="sec" id="sec03"><span class="no">03</span>总体架构</h2>
+<div class="secdesc">统一客户端内部进程视图：UI 进程 / Agent Core / 两个适配进程 / 本地文件区 / WAL，以及控制面（黄）· 数据面（蓝）· 本地 API（绿）三条通道。</div>
+
+<div class="arch">
+<svg viewBox="0 0 1140 640" xmlns="http://www.w3.org/2000/svg" font-family="Microsoft YaHei,sans-serif">
+<defs>
+<marker id="mb" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#31d0ff"/></marker>
+<marker id="my" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#ffd257"/></marker>
+<marker id="mg" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#3ee08f"/></marker>
+</defs>
+<text x="570" y="14" text-anchor="middle" font-size="13" font-weight="bold" fill="#eaf3ff">统一客户端 · 插件集成总体架构（EDR / AIDR 子进程优先 · AV 同契约扩展）</text>
+
+<rect x="40" y="26" width="1060" height="52" rx="8" fill="#1a2440" stroke="#2e4573"/>
+<text x="570" y="48" text-anchor="middle" font-size="13" font-weight="bold" fill="#ffd257">🔴 平台侧 · 安全管理中心（Java Spring Boot）</text>
+<text x="570" y="68" text-anchor="middle" font-size="11" fill="#93a7c8">策略下发 / 指令下发 / 病毒库·模型升级编排 / 统一画像 / 事件审计</text>
+
+<rect x="40" y="108" width="1060" height="500" rx="10" fill="#101a30" stroke="#2e4573"/>
+<text x="62" y="132" font-size="13" font-weight="bold" fill="#31d0ff">🟡 终端侧 · 统一客户端（宿主容器）</text>
+
+<rect x="62" y="150" width="240" height="300" rx="8" fill="#121c33" stroke="#31d0ff"/>
+<text x="182" y="174" text-anchor="middle" font-size="12" font-weight="bold" fill="#eaf3ff">GUI 壳（UI 进程）</text>
+<rect x="76" y="188" width="212" height="96" rx="6" fill="#0f1d3d" stroke="#31d0ff"/>
+<text x="182" y="210" text-anchor="middle" font-size="11" font-weight="bold" fill="#7fd8ff">EDR 插件界面（Rustinel）</text>
+<text x="182" y="230" text-anchor="middle" font-size="10" fill="#93a7c8">告警流 / 检测与规则状态</text>
+<text x="182" y="248" text-anchor="middle" font-size="10" fill="#93a7c8">扫描与响应操作入口</text>
+<text x="182" y="268" text-anchor="middle" font-size="9.5" fill="#5f7396">本地 API 渲染 · 不直连子进程</text>
+<rect x="76" y="294" width="212" height="96" rx="6" fill="#1a1428" stroke="#7c5cff"/>
+<text x="182" y="316" text-anchor="middle" font-size="11" font-weight="bold" fill="#c9b8ff">AIDR 插件界面（方寸）</text>
+<text x="182" y="336" text-anchor="middle" font-size="10" fill="#93a7c8">AI 资产台账 / 行为风险卡</text>
+<text x="182" y="354" text-anchor="middle" font-size="10" fill="#93a7c8">策略状态 / 抑制操作入口</text>
+<text x="182" y="374" text-anchor="middle" font-size="9.5" fill="#5f7396">状态卡 + 告警卡统一模型</text>
+<text x="182" y="412" text-anchor="middle" font-size="10" fill="#5f7396">不加载 SDK · 崩溃不影响防护</text>
+<text x="182" y="430" text-anchor="middle" font-size="10" fill="#5f7396">界面由 Agent Core 本地 API 驱动</text>
+
+<rect x="326" y="150" width="250" height="300" rx="8" fill="#0f1d3d" stroke="#ffd257" stroke-width="1.5"/>
+<text x="451" y="174" text-anchor="middle" font-size="12" font-weight="bold" fill="#eaf3ff">Agent Core（Supervisor · Go）</text>
+<rect x="340" y="188" width="222" height="56" rx="6" fill="#182645" stroke="#2e4573"/>
+<text x="451" y="210" text-anchor="middle" font-size="11" font-weight="bold" fill="#ffd257">① 进程托管</text>
+<text x="451" y="230" text-anchor="middle" font-size="9.5" fill="#93a7c8">拉起 / 看门狗 / 熔断 · 独立升级</text>
+<rect x="340" y="254" width="222" height="72" rx="6" fill="#182645" stroke="#2e4573"/>
+<text x="451" y="276" text-anchor="middle" font-size="11" font-weight="bold" fill="#7ce8b8">② 日志采集与上报</text>
+<text x="451" y="296" text-anchor="middle" font-size="9.5" fill="#93a7c8">三类 Reader → WAL → 批量上传</text>
+<text x="451" y="314" text-anchor="middle" font-size="9.5" fill="#93a7c8">P0 spill 不丢 · seq 幂等 · zstd</text>
+<rect x="340" y="336" width="222" height="72" rx="6" fill="#182645" stroke="#2e4573"/>
+<text x="451" y="358" text-anchor="middle" font-size="11" font-weight="bold" fill="#ffd257">③ 指令路由与回应</text>
+<text x="451" y="378" text-anchor="middle" font-size="9.5" fill="#93a7c8">CMD 路由 · ACCEPTED/RESULT 回执</text>
+<text x="451" y="396" text-anchor="middle" font-size="9.5" fill="#93a7c8">限频 / 超时 / 审计留痕</text>
+<text x="451" y="430" text-anchor="middle" font-size="10" fill="#5f7396">本地 API（GUI）· 凭证保管 · 状态缓存</text>
+
+<rect x="600" y="146" width="286" height="94" rx="8" fill="#0f1d3d" stroke="#31d0ff" stroke-width="1.5"/>
+<text x="743" y="168" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#7fd8ff">EDR 插件 · Rustinel 子进程（P0）</text>
+<text x="743" y="188" text-anchor="middle" font-size="10" fill="#93a7c8">三端行为采集 + Sigma/YARA/IOC 检测</text>
+<text x="743" y="206" text-anchor="middle" font-size="10" fill="#93a7c8">alerts.jsonl / telemetry 快照文件交付</text>
+<text x="743" y="224" text-anchor="middle" font-size="9.5" fill="#5f7396">自研一等公民 · 与适配进程同契约</text>
+
+<rect x="600" y="252" width="286" height="94" rx="8" fill="#1a1428" stroke="#7c5cff" stroke-width="1.5"/>
+<text x="743" y="274" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#c9b8ff">🟣 AIDR 插件 · 方寸 AIDR 子进程</text>
+<text x="743" y="294" text-anchor="middle" font-size="10" fill="#93a7c8">检测调用 / 回调桥接 → 告警 JSONL</text>
+<text x="743" y="312" text-anchor="middle" font-size="10" fill="#93a7c8">策略包 / 模型加载 · session·trace 关联</text>
+<text x="743" y="330" text-anchor="middle" font-size="9.5" fill="#5f7396">plugin_config 声明式接入</text>
+
+<rect x="600" y="358" width="286" height="94" rx="8" fill="#1a1428" stroke="#7c5cff" stroke-width="1.5"/>
+<text x="743" y="380" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#c9b8ff">🟣 AV 适配进程 · 安天引擎</text>
+<text x="743" y="400" text-anchor="middle" font-size="10" fill="#93a7c8">病毒查杀 / 实时防护 · 隔离区</text>
+<text x="743" y="418" text-anchor="middle" font-size="10" fill="#93a7c8">ZIP 验签安装 · 进程配额</text>
+<text x="743" y="436" text-anchor="middle" font-size="9.5" fill="#5f7396">特征库独立大文件通道</text>
+
+<rect x="910" y="146" width="168" height="200" rx="8" fill="#0f1d18" stroke="#2c5a44"/>
+<text x="994" y="168" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#7ce8b8">本地文件区</text>
+<text x="994" y="190" text-anchor="middle" font-size="10" fill="#93a7c8">EDR alerts/telemetry</text>
+<text x="994" y="210" text-anchor="middle" font-size="10" fill="#93a7c8">AIDR 告警/统计快照</text>
+<text x="994" y="230" text-anchor="middle" font-size="10" fill="#93a7c8">AV 事件/扫描报告</text>
+<text x="994" y="250" text-anchor="middle" font-size="10" fill="#93a7c8">状态快照（库/模型）</text>
+<text x="994" y="270" text-anchor="middle" font-size="10" fill="#93a7c8">运行日志（降采样）</text>
+<text x="994" y="298" text-anchor="middle" font-size="9.5" fill="#5f7396">插件只写文件</text>
+<text x="994" y="318" text-anchor="middle" font-size="9.5" fill="#5f7396">采集器按契约读取</text>
+
+<rect x="910" y="358" width="168" height="94" rx="8" fill="#0f1d18" stroke="#2c5a44"/>
+<text x="994" y="380" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#7ce8b8">WAL 上传缓冲</text>
+<text x="994" y="400" text-anchor="middle" font-size="10" fill="#93a7c8">64MB 段 · seq 幂等</text>
+<text x="994" y="418" text-anchor="middle" font-size="10" fill="#93a7c8">zstd · 1~4MB 批量</text>
+<text x="994" y="436" text-anchor="middle" font-size="9.5" fill="#5f7396">P0 spill 不丢 · 分级丢弃</text>
+
+<line x1="302" y1="250" x2="326" y2="250" stroke="#3ee08f" stroke-width="1.6" marker-end="url(#mg)"/>
+<line x1="326" y1="268" x2="302" y2="268" stroke="#3ee08f" stroke-width="1.6" marker-end="url(#mg)"/>
+
+<line x1="576" y1="193" x2="600" y2="193" stroke="#ffd257" stroke-width="1.6" marker-end="url(#my)"/>
+<line x1="576" y1="299" x2="600" y2="299" stroke="#ffd257" stroke-width="1.6" marker-end="url(#my)"/>
+<line x1="576" y1="405" x2="600" y2="405" stroke="#ffd257" stroke-width="1.6" marker-end="url(#my)"/>
+
+<line x1="886" y1="193" x2="910" y2="193" stroke="#31d0ff" stroke-width="1.6" marker-end="url(#mb)"/>
+<line x1="886" y1="299" x2="910" y2="299" stroke="#31d0ff" stroke-width="1.6" marker-end="url(#mb)"/>
+<line x1="886" y1="405" x2="910" y2="405" stroke="#31d0ff" stroke-width="1.6" marker-end="url(#mb)"/>
+<line x1="994" y1="346" x2="994" y2="358" stroke="#31d0ff" stroke-width="1.4" marker-end="url(#mb)"/>
+
+<line x1="570" y1="78" x2="470" y2="108" stroke="#ffd257" stroke-width="1.6" marker-end="url(#my)"/>
+<text x="410" y="94" font-size="10" fill="#ffd257">控制面 WSS 下行</text>
+<line x1="590" y1="108" x2="640" y2="78" stroke="#31d0ff" stroke-width="1.6" marker-end="url(#mb)"/>
+<text x="652" y="94" font-size="10" fill="#31d0ff">数据面上行</text>
+
+<rect x="62" y="470" width="1016" height="48" rx="8" fill="#121c33" stroke="#233457"/>
+<text x="570" y="492" text-anchor="middle" font-size="11" fill="#93a7c8">内核驱动层（唯一例外直连点）：AV minifilter · AIDR 采集点</text>
+<text x="570" y="510" text-anchor="middle" font-size="10" fill="#5f7396">仅对接各子进程 · 宿主与 GUI 永不加载第三方 SDK</text>
+
+<text x="570" y="546" text-anchor="middle" font-size="10.5" fill="#93a7c8">通道约定：🟡 控制面（WSS / IPC 指令与回执）　🔵 数据面（文件采集 → WAL → 上传）　🟢 本地 API（GUI ↔ Agent Core，回环 + token 鉴权）</text>
+<text x="570" y="570" text-anchor="middle" font-size="10.5" fill="#5f7396">EDR / AIDR 为一等公民插件，AV 同契约扩展 · 全部插件独立进程：崩溃隔离 / 独立配额 / 独立升级 · GUI 壳包装两插件界面，操作一律转 CMD 指令</text>
+</svg>
+</div>
+
+<!-- ================= 04 ================= -->
+<h2 class="sec" id="sec04"><span class="no">04</span>适配层设计：契约映射</h2>
+<div class="secdesc">适配进程是 SDK 与统一客户端之间唯一边界。对外实现统一插件契约（见《落地方案设计》第 3 章 C1~C12），对内封装 SDK 私有 API。</div>
+
+<h3 class="sub" id="s4-1">4.1 契约维度映射表</h3>
+<table>
+<tr><th>契约维度</th><th>统一要求</th><th>AV 适配器实现</th><th>AIDR 适配器实现</th></tr>
+<tr><td class="k">注册声明</td><td>双层注册：安装时 plugin_config.jsonc 静态声明（4.4 节），运行时 HELLO 上报 plugin_id / 版本 / 能力集 / contract_ver，两处不一致以保守者为准</td><td>AppID=com.h3c.sec.avadapter，能力：scan / rtp / quarantine / whitelist / update</td><td>AppID=com.h3c.sec.aidradapter，能力：detect / policy / inhibit</td></tr>
+<tr><td class="k">数据交付</td><td>只写本地文件，不自建上报通道（C5）</td><td>病毒事件 JSONL + 扫描报告整文件 + 引擎日志</td><td>检测告警 JSONL + 检测统计快照</td></tr>
+<tr><td class="k">指令响应</td><td>收到 CMD 回 ACCEPTED，异步回 RESULT</td><td>扫描/升级/隔离/白名单五类指令</td><td>策略下发 / 模型更新 / 抑制窗口三类指令</td></tr>
+<tr><td class="k">状态快照</td><td>周期整写状态文件（供 UI 与画像）</td><td>病毒库版本 / 最近扫描时间 / 隔离数 / 实防开关</td><td>模型版本 / 策略版本 / 最近检测统计 / 抑制状态</td></tr>
+<tr><td class="k">配置管理</td><td>CONFIG_SET 指令 + 本地配置文件</td><td>扫描线程数 / 排除路径 / 实防开关 / 限速</td><td>检测阈值 / 场景开关 / 采样率</td></tr>
+<tr><td class="k">心跳与资源</td><td>心跳含 CPU / 内存 / 线程数</td><td>扫描期资源波动大，心跳加密率字段</td><td>推理延迟 P95 字段</td></tr>
+<tr><td class="k">升级卸载</td><td>适配进程可独立升级 / 停止</td><td>引擎库版本与特征库版本分离上报</td><td>模型包版本独立上报</td></tr>
+</table>
+
+<h3 class="sub" id="s4-2">4.2 回调桥接模式（两个适配器共用）</h3>
+<p>两个 SDK 都以回调推事件。回调发生在 SDK 内部线程，适配器在回调内只做最轻动作，否则可能阻塞引擎内部队列：</p>
+<pre class="code"><span class="cm">// 适配器回调桥接：回调线程只入内存队列，落盘由独立写线程完成</span>
+func (a *Adapter) OnEvent(raw SdkEvent) {
+    select {
+    case a.ch &lt;- raw:            <span class="cm">// 有界队列 4096，满则丢弃并计数（丢弃计数进心跳）</span>
+    default: a.dropped.Add(1)
+    }
+}
+
+func (a *Adapter) writerLoop() {
+    for ev := range a.ch {
+        line := envelope.Normalize(ev)          <span class="cm">// 转统一事件信封（第 09 章）</span>
+        a.jsonl.Append(line)                    <span class="cm">// 追加写 JSONL，采集器接管后续</span>
+    }
+}</pre>
+<div class="note">这一层保证「SDK 事件 → 文件」的转换是唯一需要适配器写代码的地方；文件之后的读取、缓冲、上报全部复用《日志采集专项设计》的统一采集器，两个适配器不重复造轮子。</div>
+
+<h3 class="sub" id="s4-3">4.3 SDK 私有 API 封装原则</h3>
+<table>
+<tr><th>原则</th><th>说明</th></tr>
+<tr><td class="k">不外溢</td><td>SDK 头文件 / 类型只在适配进程代码中出现；契约消息体（Protobuf）不含任何 SDK 类型</td></tr>
+<tr><td class="k">可替换</td><td>适配器内对 SDK 调用做一层薄包装（接口 + 实现），换 SDK 版本只改实现文件</td></tr>
+<tr><td class="k">失败兜底</td><td>SDK 初始化失败 → 适配进程进入 degraded 状态并在状态快照标明，Supervisor 按 C8 策略告警但不拖垮整体</td></tr>
+<tr><td class="k">授权解耦</td><td>授权文件路径 / 升级凭证由 Supervisor 通过启动参数或受控文件注入，适配器不硬编码、不缓存明文</td></tr>
+</table>
+
+<h3 class="sub" id="s4-4">4.4 声明式插件配置（对齐 iNode plugin_config.jsonc）</h3>
+<p>采纳 iNode 插件系统的声明式配置规范作为统一客户端插件包标准：每个插件包必须包含 <code>plugin_config.jsonc</code>，安装时静态验证，运行期不再依赖。在 iNode 五个区块基础上扩展 <b>Security</b> 与 <b>DataSources</b> 两个统一客户端必需区块：</p>
+
+<table>
+<tr><th>区块</th><th>字段要点</th><th>与 iNode 指南的关系</th></tr>
+<tr><td class="k">PluginInfo（必填）</td><td>AppID（反向域名格式）/ DisplayName / Type（ui | background | mix）/ Version / Icon / Description</td><td>原样采纳；AppID 强制反向域名（第三方适配器统一 com.h3c.sec.* 前缀）</td></tr>
+<tr><td class="k">Frontend（ui/mix 必填）</td><td>Binary / Params / Width / Height（默认窗口尺寸）</td><td>原样采纳；Width/Height 作为统一客户端窗口宿主的尺寸协商值</td></tr>
+<tr><td class="k">Backend（background/mix 必填）</td><td>Binary / Params</td><td>原样采纳；AV / AIDR 适配进程即 Backend</td></tr>
+<tr><td class="k">Runtime（可选）</td><td>AutoLoad / StartDelay / StopTimeout</td><td>原样采纳，语义映射见第 05 章</td></tr>
+<tr><td class="k">Installation（可选）</td><td>RequireAdmin / DataPath / LogPath / RebootRequired</td><td>原样采纳；LogPath 成为采集源自动注册锚点（7.4 节）</td></tr>
+<tr><td class="k"><span class="tag t-red">扩展</span> Security（必填）</td><td>Signature（minisign 签名文件路径）/ Capabilities（network 声明、privileged_ops 声明）/ ContractVer（插件契约版本）</td><td class="rec">统一客户端新增：无此区块拒绝安装</td></tr>
+<tr><td class="k"><span class="tag t-red">扩展</span> DataSources（可选）</td><td>events / alerts / status / log 四类文件相对路径 + schema 名</td><td class="rec">统一客户端新增：声明即注册进采集 Source Registry（7.4 节）</td></tr>
+</table>
+
+<p>AV 适配进程的完整配置示例：</p>
+<pre class="code">{
+  "PluginInfo": {
+    "AppID": "com.h3c.sec.avadapter",
+    "DisplayName": "病毒防护（安天引擎）",
+    "Type": "background",                    <span class="cm">// 适配进程无自带界面</span>
+    "Version": "3.2.1",
+    "Description": "病毒查杀 / 实时防护 / 隔离区，引擎能力封装"
+  },
+  "Backend": {
+    "Binary": "bin/av_adapter.exe",
+    "Params": "--contract=v1"
+  },
+  "Runtime": {
+    "AutoLoad": true,                        <span class="cm">// 安全防护模块启用即随客户端启动</span>
+    "StartDelay": 800,                       <span class="cm">// 引擎加载较重，错峰于自研插件</span>
+    "StopTimeout": 10000                     <span class="cm">// 防护类进程优雅退出给足 10s</span>
+  },
+  "Installation": {
+    "RequireAdmin": true,                    <span class="cm">// minifilter 驱动安装需要</span>
+    "DataPath": "./data",
+    "LogPath": "./logs",
+    "RebootRequired": true
+  },
+  "Security": {                              <span class="cm">// 【扩展区块】统一客户端必填</span>
+    "Signature": "sig/plugin.manifest.sign",
+    "Capabilities": {
+      "network": ["update.av.h3c.com:443"],  <span class="cm">// 出网目标白名单，唯一例外</span>
+      "privileged_ops": ["minifilter"]
+    },
+    "ContractVer": "1.0"
+  },
+  "DataSources": {                           <span class="cm">// 【扩展区块】声明即被采集器接管</span>
+    "events":  { "path": "data/threat_events.jsonl", "schema": "av.threat.v1",      "priority": "P0" },
+    "reports": { "path": "data/reports/*.json",      "schema": "av.scan_report.v1", "priority": "P1" },
+    "status":  { "path": "data/status.json",         "schema": "av.status.v1",      "priority": "P2" },
+    "log":     { "path": "logs/",                    "mode": "log-sampler" }
+  }
+}</pre>
+<div class="note grn">DataSources 声明与 supervisor.toml 静态配置合并注册，<b>静态配置优先于插件声明</b>（沿用日志采集专项设计的冲突仲裁规则）——第三方适配器随包自带声明即可工作，平台侧仍可强制覆盖。契约消息与采集配置中的 plugin_id 沿用短名（<code>av-antian</code> / <code>aidr-fc</code>），安装登记时与 AppID 建立映射，避免长反向域名在 IPC 与事件流中膨胀。</div>
+
+<h3 class="sub" id="s4-5">4.5 插件自治与安全基线的边界</h3>
+<p>iNode 指南主张插件「完全独立、自己决定网络通信与端口」。统一客户端保留插件自治的开发便利，但按终端安全产品基线收紧三处：</p>
+<table>
+<tr><th>维度</th><th>iNode 原则</th><th>统一客户端约束</th></tr>
+<tr><td class="k">工作方式 / 内部状态</td><td>插件自治</td><td class="rec">保留自治（AV / AIDR 引擎内部调度不干预）</td></tr>
+<tr><td class="k">开发技术栈</td><td>任意可编译为可执行文件的技术</td><td class="rec">保留自治，但必须通过安装验签（10.1 节）</td></tr>
+<tr><td class="k">网络通信</td><td>自治（自己决定）</td><td class="bad">收紧：出网目标必须在 Security.Capabilities.network 白名单声明，本地防火墙规则只放行声明目标，回环以外默认拒绝</td></tr>
+<tr><td class="k">数据上报</td><td>无约束</td><td class="bad">收紧：禁止自建上报通道，数据交付只走文件（契约 C5），网络仅用于特征库 / 模型升级一类白名单场景</td></tr>
+<tr><td class="k">端口 / IPC</td><td>自治</td><td class="mid">收紧：监听端口须在 Capabilities 声明并纳入审计；与宿主的 IPC 由契约固定（Named Pipe / UDS）</td></tr>
+<tr><td class="k">前端窗口</td><td>独立 GUI 进程自带窗口</td><td class="mid">调整：ui / mix 前端由统一客户端窗口宿主承载（6.6 节），不出现游离于统一 UI 之外的窗口</td></tr>
+</table>
+<div class="note warn">收紧的理由：iNode 是通用插件宿主，插件可信边界由用户安装行为保证；统一客户端的插件承载的是安全检测能力本身，一旦插件被仿冒或被植入上报通道，等于在防护核心上开洞 —— 自治性与安全基线冲突时，一律取安全基线。</div>
+
+<!-- ================= 05 ================= -->
+<h2 class="sec" id="sec05"><span class="no">05</span>进程生命周期与守护</h2>
+<div class="secdesc">Supervisor 对两个适配进程的托管策略：拉起 / 崩溃重启 / 资源兜底 / 降级。</div>
+
+<table>
+<tr><th>场景</th><th>Supervisor 行为</th></tr>
+<tr><td class="k">启动编排</td><td>对齐 iNode Runtime 字段：AutoLoad=true 且平台画像启用该模块 → 随客户端启动自动拉起；StartDelay 控制错峰（引擎加载较重的 AV 默认 800ms，晚于自研插件）；未启用模块的适配进程不占资源</td></tr>
+<tr><td class="k">崩溃重启</td><td>指数退避（1s/5s/30s/5min 封顶）；5 分钟内崩溃 ≥3 次 → 进入熔断：停止重启、上报 P1 事件、状态卡标「故障」</td></tr>
+<tr><td class="k">假死检测</td><td>心跳超时 90s 且状态文件无更新 → SIGTERM；再超时 30s → 强杀重启</td></tr>
+<tr><td class="k">资源兜底</td><td>Windows Job Object / Linux cgroups 限制单适配进程内存上限（AV 1.5GB / AIDR 2GB，含模型加载），超限由 Supervisor 决定重启而非坐视系统 OOM</td></tr>
+<tr><td class="k">降级运行</td><td>AV 适配进程不可用而 AIDR 正常 → 客户端整体降级运行，状态卡明确展示；绝不允许「静默半防护」</td></tr>
+<tr><td class="k">优雅退出</td><td>卸载 / 升级前 SIGTERM，适配器完成 SDK 反初始化（隔离区句柄 / 驱动通道）后再退出；超时取 plugin_config 的 StopTimeout（iNode 默认 5000ms，防护类进程建议 10000ms），超时强杀</td></tr>
+</table>
+
+<div class="note risk">驱动例外项：AV minifilter 驱动随引擎生命周期装卸，由适配进程通过授权服务接口控制；Supervisor 不直接操作驱动，驱动异常由适配器转译为状态快照字段上报。</div>
+
+<!-- ================= 06 ================= -->
+<h2 class="sec" id="sec06"><span class="no">06</span>GUI 融合设计</h2>
+<div class="secdesc">UI 独立进程、只读缓存态、操作指令化。第三方 SDK 对用户完全透明：用户看到的是统一客户端的一个个「能力卡」，而不是两个外来产品。</div>
+
+<h3 class="sub" id="s6-1">6.1 UI 进程形态与选型建议</h3>
+<table>
+<tr><th>候选</th><th>优势</th><th>劣势</th><th>建议</th></tr>
+<tr><td class="k">本地原生壳（Qt / WinUI3）</td><td>内存小（&lt;100MB）、启动快、无运行时依赖</td><td>团队栈匹配度、迭代效率</td><td class="rec">P0 推荐（终端安全产品惯例）</td></tr>
+<tr><td class="k">Electron 壳</td><td>Web 技术栈、UI 迭代快、与管侧前端复用</td><td>常驻内存 200MB+、终端资源敏感</td><td class="mid">备选（若复用管侧前端收益大）</td></tr>
+</table>
+<div class="note">无论哪种壳，本节融合设计不变：UI 与 Agent Core 之间只有「本地 API」一条连接，UI 不加载 SDK、不直连驱动、不读适配进程内存。</div>
+
+<h3 class="sub" id="s6-2">6.2 GUI 融合架构</h3>
+<div class="arch">
+<svg viewBox="0 0 1140 470" xmlns="http://www.w3.org/2000/svg" font-family="Microsoft YaHei,sans-serif">
+<defs>
+<marker id="mb2" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#31d0ff"/></marker>
+<marker id="my2" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#ffd257"/></marker>
+<marker id="mg2" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#3ee08f"/></marker>
+</defs>
+<text x="570" y="16" text-anchor="middle" font-size="13" font-weight="bold" fill="#eaf3ff">GUI 融合架构：UI 只连本地 API，SDK 能力以状态卡呈现</text>
+
+<rect x="30" y="34" width="250" height="380" rx="8" fill="#121c33" stroke="#233457"/>
+<text x="155" y="58" text-anchor="middle" font-size="12" font-weight="bold" fill="#eaf3ff">UI 进程（GUI 壳）</text>
+<rect x="46" y="74" width="218" height="56" rx="6" fill="#182645" stroke="#2e4573"/>
+<text x="155" y="96" text-anchor="middle" font-size="11" fill="#cfe0f7">插件状态卡 ×N</text>
+<text x="155" y="114" text-anchor="middle" font-size="10" fill="#93a7c8">AV 卡 · AIDR 卡 · 自研插件卡</text>
+<rect x="46" y="140" width="218" height="56" rx="6" fill="#182645" stroke="#2e4573"/>
+<text x="155" y="162" text-anchor="middle" font-size="11" fill="#cfe0f7">统一告警流</text>
+<text x="155" y="180" text-anchor="middle" font-size="10" fill="#93a7c8">病毒 / AI 风险 / EDR 同一事件卡模型</text>
+<rect x="46" y="206" width="218" height="56" rx="6" fill="#182645" stroke="#2e4573"/>
+<text x="155" y="228" text-anchor="middle" font-size="11" fill="#cfe0f7">隔离区 / 任务中心</text>
+<text x="155" y="246" text-anchor="middle" font-size="10" fill="#93a7c8">列表读缓存 · 动作转 CMD 指令</text>
+<rect x="46" y="272" width="218" height="56" rx="6" fill="#182645" stroke="#2e4573"/>
+<text x="155" y="294" text-anchor="middle" font-size="11" fill="#cfe0f7">托盘与系统通知</text>
+<text x="155" y="312" text-anchor="middle" font-size="10" fill="#93a7c8">UI 不在线时由 Agent Core 直接触发</text>
+<text x="155" y="352" text-anchor="middle" font-size="11" fill="#5f7396">禁：加载 SDK / 直连驱动 / 提权操作</text>
+<text x="155" y="372" text-anchor="middle" font-size="11" fill="#5f7396">禁：自建与适配进程的通信</text>
+
+<rect x="330" y="34" width="170" height="380" rx="8" fill="#0f1d18" stroke="#2c5a44"/>
+<text x="415" y="58" text-anchor="middle" font-size="12" font-weight="bold" fill="#7ce8b8">本地 API 边界</text>
+<text x="415" y="86" text-anchor="middle" font-size="11" fill="#93a7c8">127.0.0.1 回环</text>
+<text x="415" y="108" text-anchor="middle" font-size="11" fill="#93a7c8">REST（读状态）</text>
+<text x="415" y="130" text-anchor="middle" font-size="11" fill="#93a7c8">WS（事件推送）</text>
+<text x="415" y="152" text-anchor="middle" font-size="11" fill="#93a7c8">POST（提交 CMD）</text>
+<text x="415" y="182" text-anchor="middle" font-size="11" fill="#7ce8b8">本地 token 鉴权</text>
+<text x="415" y="204" text-anchor="middle" font-size="11" fill="#7ce8b8">操作审计留痕</text>
+<text x="415" y="240" text-anchor="middle" font-size="10" fill="#5f7396">GET /plugins</text>
+<text x="415" y="260" text-anchor="middle" font-size="10" fill="#5f7396">GET /alerts?cursor</text>
+<text x="415" y="280" text-anchor="middle" font-size="10" fill="#5f7396">GET /quarantine</text>
+<text x="415" y="300" text-anchor="middle" font-size="10" fill="#5f7396">POST /cmd</text>
+
+<rect x="550" y="34" width="250" height="380" rx="8" fill="#121c33" stroke="#233457"/>
+<text x="675" y="58" text-anchor="middle" font-size="12" font-weight="bold" fill="#eaf3ff">Agent Core（Supervisor）</text>
+<rect x="566" y="74" width="218" height="66" rx="6" fill="#182645" stroke="#2e4573"/>
+<text x="675" y="98" text-anchor="middle" font-size="11" fill="#cfe0f7">状态缓存</text>
+<text x="675" y="116" text-anchor="middle" font-size="10" fill="#93a7c8">聚合各插件状态快照文件</text>
+<rect x="566" y="150" width="218" height="66" rx="6" fill="#182645" stroke="#2e4573"/>
+<text x="675" y="174" text-anchor="middle" font-size="11" fill="#cfe0f7">事件本地缓存</text>
+<text x="675" y="192" text-anchor="middle" font-size="10" fill="#93a7c8">P0/P1 事件环形缓冲，供告警流</text>
+<rect x="566" y="226" width="218" height="66" rx="6" fill="#182645" stroke="#2e4573"/>
+<text x="675" y="250" text-anchor="middle" font-size="11" fill="#cfe0f7">CMD 路由与回执</text>
+<text x="675" y="268" text-anchor="middle" font-size="10" fill="#93a7c8">UI 提交与平台下发同一通道</text>
+<rect x="566" y="302" width="218" height="66" rx="6" fill="#182645" stroke="#2e4573"/>
+<text x="675" y="326" text-anchor="middle" font-size="11" fill="#cfe0f7">通知触发器</text>
+<text x="675" y="344" text-anchor="middle" font-size="10" fill="#93a7c8">P0 事件 → 系统 toast（UI 无关）</text>
+
+<rect x="850" y="34" width="130" height="180" rx="8" fill="#1a1428" stroke="#7c5cff"/>
+<text x="915" y="58" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#c9b8ff">AV 适配进程</text>
+<text x="915" y="84" text-anchor="middle" font-size="10" fill="#93a7c8">状态快照文件</text>
+<text x="915" y="104" text-anchor="middle" font-size="10" fill="#93a7c8">病毒事件 JSONL</text>
+<text x="915" y="124" text-anchor="middle" font-size="10" fill="#93a7c8">隔离区接口</text>
+<text x="915" y="144" text-anchor="middle" font-size="10" fill="#93a7c8">扫描任务接口</text>
+<text x="915" y="180" text-anchor="middle" font-size="10" fill="#5f7396">UI 永不直连</text>
+
+<rect x="850" y="234" width="130" height="180" rx="8" fill="#1a1428" stroke="#7c5cff"/>
+<text x="915" y="258" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#c9b8ff">AIDR 适配进程</text>
+<text x="915" y="284" text-anchor="middle" font-size="10" fill="#93a7c8">状态快照文件</text>
+<text x="915" y="304" text-anchor="middle" font-size="10" fill="#93a7c8">AI 告警 JSONL</text>
+<text x="915" y="324" text-anchor="middle" font-size="10" fill="#93a7c8">策略/抑制接口</text>
+<text x="915" y="360" text-anchor="middle" font-size="10" fill="#5f7396">UI 永不直连</text>
+
+<line x1="280" y1="200" x2="330" y2="200" stroke="#3ee08f" stroke-width="1.6" marker-end="url(#mg2)"/>
+<line x1="330" y1="226" x2="280" y2="226" stroke="#3ee08f" stroke-width="1.6" marker-end="url(#mg2)"/>
+<text x="305" y="192" text-anchor="middle" font-size="10" fill="#3ee08f">读/推</text>
+<line x1="500" y1="200" x2="550" y2="200" stroke="#ffd257" stroke-width="1.6" marker-end="url(#my2)"/>
+<line x1="550" y1="226" x2="500" y2="226" stroke="#ffd257" stroke-width="1.6" marker-end="url(#my2)"/>
+<text x="525" y="192" text-anchor="middle" font-size="10" fill="#ffd257">CMD/回执</text>
+<line x1="800" y1="124" x2="850" y2="124" stroke="#ffd257" stroke-width="1.4" marker-end="url(#my2)"/>
+<text x="825" y="116" text-anchor="middle" font-size="10" fill="#ffd257">IPC</text>
+<line x1="800" y1="324" x2="850" y2="324" stroke="#ffd257" stroke-width="1.4" marker-end="url(#my2)"/>
+<text x="825" y="316" text-anchor="middle" font-size="10" fill="#ffd257">IPC</text>
+<line x1="915" y1="214" x2="915" y2="234" stroke="#233457" stroke-width="1"/>
+<text x="570" y="440" text-anchor="middle" font-size="11" fill="#5f7396">融合原则：UI 是「状态的镜子 + 指令的入口」，不做任何业务判断</text>
+<text x="570" y="458" text-anchor="middle" font-size="11" fill="#5f7396">SDK 差异全部被适配层与状态卡模型吸收；UI 永不直连适配进程</text>
+</svg>
+</div>
+
+<h3 class="sub" id="s6-3">6.3 插件状态卡模型</h3>
+<p>统一状态卡数据结构（Agent Core 从各插件状态快照文件聚合而来），两个 SDK 卡片只是字段填充不同：</p>
+<table>
+<tr><th>字段</th><th>AV 卡示例</th><th>AIDR 卡示例</th></tr>
+<tr><td class="k">identity</td><td>av-antian v3.2.1（引擎 8.7）</td><td>aidr-fc v2.0（模型 2026.11）</td></tr>
+<tr><td class="k">status</td><td>running / degraded / quarantined-lib / fault</td><td>running / degraded / policy-missing / fault</td></tr>
+<tr><td class="k">protect_switch</td><td>实时防护开/关</td><td>检测开关 / 抑制窗口中</td></tr>
+<tr><td class="k">asset_version</td><td>病毒库 2026-11-23 · 872 万条</td><td>策略包 v27 · 模型包 2026.11.14</td></tr>
+<tr><td class="k">last_activity</td><td>最近扫描 11-23 03:00 · 最近拦截 11-24 09:12</td><td>最近检测 11-24 09:47 · 今日拦截 6 次</td></tr>
+<tr><td class="k">metrics</td><td>扫描中：42%（快速扫描 · 剩余约 6 分钟）</td><td>今日检测 1,284 次 · 风险 6 · P95 延迟 38ms</td></tr>
+<tr><td class="k">degrade_reason</td><td>特征库升级失败 2 次（末次 11-24 02:00）</td><td>策略包缺失，使用默认策略</td></tr>
+</table>
+<div class="note grn">「asset_version」「degrade_reason」两个通用字段是 GUI 融合的关键：病毒库、模型包、策略包在用户视角统一表达为「资产版本」，升级失败统一表达为「降级原因」，UI 无需理解任何 SDK 概念。</div>
+
+<h3 class="sub" id="s6-4">6.4 统一告警流与操作入口</h3>
+<table>
+<tr><th>UI 组件</th><th>数据来源</th><th>用户动作 → 转换</th></tr>
+<tr><td class="k">统一告警流</td><td>Agent Core 事件本地缓存（WS 推送 + cursor 拉取）</td><td>病毒卡「隔离」→ POST /cmd QUARANTINE_ADD；AI 卡「抑制会话」→ POST /cmd DETECT_INHIBIT</td></tr>
+<tr><td class="k">隔离区</td><td>Agent Core 缓存隔离区列表（AV 适配器维护快照）</td><td>「恢复」「删除」→ CMD 指令，带二次确认与审计</td></tr>
+<tr><td class="k">任务中心</td><td>活跃任务列表（task_id / 类型 / 进度 / 可取消）</td><td>「取消」→ SCAN_CANCEL；完成后自动归档</td></tr>
+<tr><td class="k">白名单管理</td><td>AV 白名单快照</td><td>「添加信任」→ WHITELIST_ADD（本地管理员口令确认）</td></tr>
+</table>
+<div class="note warn">所有 UI 动作都要过本地 API 鉴权 + 审计留痕，且与平台下发指令走同一条 CMD 通道 —— 这保证平台侧审计视图能同时看到「用户本地点的」和「平台下发的」全部操作。</div>
+
+<h3 class="sub" id="s6-5">6.5 通知策略</h3>
+<table>
+<tr><th>事件等级</th><th>通知行为</th><th>UI 依赖</th></tr>
+<tr><td class="k">P0（病毒发现 / AI 高危）</td><td>系统 toast 立即弹出 + 托盘角标</td><td class="rec">由 Agent Core 直接触发，UI 不在线也通知</td></tr>
+<tr><td class="k">P1（降级 / 升级失败 / 熔断）</td><td>托盘角标 + 告警流置顶</td><td>UI 在线时拉取</td></tr>
+<tr><td class="k">P2（扫描完成 / 例行摘要）</td><td>仅状态卡更新，不打扰</td><td>—</td></tr>
+</table>
+
+<h3 class="sub" id="s6-6">6.6 插件窗口宿主（ui / mix 类型插件）</h3>
+<p>iNode 指南允许 ui / mix 插件自带前端进程与独立窗口。统一客户端的原则是「第三方 SDK 能力以状态卡呈现，不出现游离窗口」，但对工具类插件（网络诊断、日志查看器等 mix 型）保留前端能力，由统一客户端提供<b>窗口宿主</b>：</p>
+<table>
+<tr><th>要点</th><th>设计</th></tr>
+<tr><td class="k">承载方式</td><td>UI 进程提供「插件工具面板」区域，Frontend 进程窗口按 Width / Height 协商尺寸嵌入或以受控子窗口呈现；不在桌面独立漂浮</td></tr>
+<tr><td class="k">能力边界</td><td>Frontend 进程同样禁止加载 SDK、禁止直连驱动；它只与自己的 Backend 通信（通信方式插件自理，对齐 iNode），与宿主的交互仅限本地 API</td></tr>
+<tr><td class="k">生命周期</td><td>窗口关闭即 Supervisor 通知停止 Frontend 进程；Backend 是否常驻由插件 Runtime.AutoLoad 与 Type 决定</td></tr>
+<tr><td class="k">AV / AIDR</td><td class="rec">一律 background 型，不带 Frontend；用户交互全部收敛到状态卡 / 告警流 / 隔离区 / 任务中心四个融合组件</td></tr>
+</table>
+
+<!-- ================= 07 ================= -->
+<h2 class="sec" id="sec07"><span class="no">07</span>日志与数据采集设计</h2>
+<div class="secdesc">零新增通道：适配器只负责把 SDK 产出变成「符合契约的文件」，之后全部进入《Supervisor 插件日志采集专项设计》既有管道。</div>
+
+<h3 class="sub" id="s7-1">7.1 采集源注册表（supervisor.toml 增量）</h3>
+<pre class="code">[[source]]                              <span class="cm"># AV 病毒事件：追加型，P0 业务数据</span>
+id = "av-threat-events"
+plugin = "av-antian"
+path = "data/av/threat_events.jsonl"
+mode = "append-tail"                    <span class="cm"># TailReader</span>
+priority = "P0"
+schema = "av.threat.v1"
+
+[[source]]                              <span class="cm"># AV 扫描报告：任务完成整文件，P1</span>
+id = "av-scan-reports"
+plugin = "av-antian"
+path = "data/av/reports/*.json"
+mode = "snapshot-read"                  <span class="cm"># SnapshotReader</span>
+priority = "P1"
+schema = "av.scan_report.v1"
+
+[[source]]                              <span class="cm"># AIDR 检测告警：追加型，P0</span>
+id = "aidr-alerts"
+plugin = "aidr-fc"
+path = "data/aidr/alerts.jsonl"
+mode = "append-tail"
+priority = "P0"
+schema = "aidr.alert.v1"
+
+[[source]]                              <span class="cm"># AIDR 检测统计：30s 整写快照，P2</span>
+id = "aidr-stats"
+plugin = "aidr-fc"
+path = "data/aidr/stats.json"
+mode = "snapshot-read"
+priority = "P2"
+
+[[source]]                              <span class="cm"># 两个 SDK 的运行日志：诊断路径</span>
+id = "av-engine-log"
+plugin = "av-antian"
+path = "logs/av/engine.log"
+mode = "log-sampler"                    <span class="cm"># LogSampler，走摘要+按需 LOG_FETCH</span>
+id2 = "aidr-runtime-log"                <span class="cm"># （第二条同模式，示例合并书写）</span></pre>
+
+<h3 class="sub" id="s7-2">7.2 各产出与队列分级</h3>
+<table>
+<tr><th>SDK 产出</th><th>适配器动作</th><th>Reader</th><th>队列</th><th>满时语义</th></tr>
+<tr><td class="k">AV 病毒事件</td><td>回调 → 信封 → 追加 JSONL</td><td>TailReader</td><td class="k">P0</td><td class="rec">spill 文件不丢</td></tr>
+<tr><td class="k">AV 扫描报告</td><td>任务结束整文件写 reports/</td><td>SnapshotReader</td><td class="k">P1</td><td class="mid">降采样（保最新 + 计数）</td></tr>
+<tr><td class="k">AV 状态快照</td><td>30s 整写 status.json</td><td>SnapshotReader</td><td class="k">P2</td><td>丢弃（下周期覆盖）</td></tr>
+<tr><td class="k">AIDR 检测告警</td><td>回调 → 信封 → 追加 JSONL</td><td>TailReader</td><td class="k">P0</td><td class="rec">spill 文件不丢</td></tr>
+<tr><td class="k">AIDR 统计快照</td><td>30s 整写 stats.json</td><td>SnapshotReader</td><td class="k">P2</td><td>丢弃</td></tr>
+<tr><td class="k">引擎/运行日志</td><td>SDK 日志重定向到 logs/</td><td>LogSampler</td><td class="k">诊断</td><td>摘要 + 事件触发快照 + LOG_FETCH</td></tr>
+</table>
+<div class="note grn">病毒事件与 AI 告警都是 P0：病毒发现是最高价值安全事件，AI 风险会话是审计关键证据 —— 两者在断网缓冲 / 磁盘压力下都不允许丢，溢出走 spill 文件（专项设计 06 章语义）。</div>
+
+<h3 class="sub" id="s7-3">7.3 与专项设计的衔接清单</h3>
+<table>
+<tr><th>专项设计既有机制</th><th>在两个 SDK 上的直接复用方式</th></tr>
+<tr><td class="k">file_key（File ID / inode）</td><td>JSONL 轮转、报告文件改名均不丢位点</td></tr>
+<tr><td class="k">offset 状态 + seq 幂等</td><td>崩溃恢复重读不产生重复病毒事件</td></tr>
+<tr><td class="k">双时间戳</td><td>event_time = SDK 事件时间；ingest_time = 采集时间，供平台画像做采集延迟分析</td></tr>
+<tr><td class="k">丢弃可观测</td><td>适配器内存队列丢弃计数 + 采集器队列丢弃计数都进心跳，平台侧「丢弃率」指标直接可用</td></tr>
+<tr><td class="k">LOG_FETCH</td><td>病毒误报排查时从平台直接拉取引擎日志片段，免现场支持</td></tr>
+</table>
+
+<h3 class="sub" id="s7-4">7.4 LogPath 约定与采集源自动注册（对齐 iNode 日志管理）</h3>
+<p>采纳 iNode 指南的日志目录约定（<code>Installation.LogPath</code> 相对插件目录，默认 <code>./logs</code>；命名 <code>{AppID}_{日期}.log</code>），并把它变成采集器的自动注册锚点：</p>
+<table>
+<tr><th>约定项</th><th>iNode 指南</th><th>统一客户端落地</th></tr>
+<tr><td class="k">日志目录</td><td>LogPath 相对插件安装目录</td><td class="rec">同路径；插件无需向宿主额外报路径，采集器按插件目录 + LogPath 推导</td></tr>
+<tr><td class="k">文件命名</td><td><code>{AppID}_{日期}.log</code> 按日轮转</td><td class="rec">直接兼容：file_key 用 File ID / inode，按日轮转不丢位点（专项设计 05 章）</td></tr>
+<tr><td class="k">日志格式</td><td><code>[时间] [级别] Message | Key: Value</code> 文本格式</td><td class="mid">双轨：业务/事件数据必须 JSONL（结构化信封）；运行日志允许 iNode 文本格式，LogSampler 做文本解析降级（级别行数统计 / 错误码 TopN 照常可用）</td></tr>
+<tr><td class="k">stdout / stderr</td><td>管理器捕获并记入管理器日志</td><td class="rec">Agent Core 将适配进程 stdout/stderr 重定向到 <code>{LogPath}/console.log</code>，走运行日志路径（摘要 + 事件触发快照 + LOG_FETCH）</td></tr>
+<tr><td class="k">自动注册</td><td>—（指南无采集概念）</td><td class="rec"><b>新增</b>：插件安装成功后，采集器按 LogPath 自动注册一条 LogSampler 源 + 按 DataSources 声明注册业务源，无需手写 supervisor.toml</td></tr>
+</table>
+<div class="note">iNode 指南只覆盖「日志写在哪、什么格式」，未覆盖「谁读、怎么传、断了怎么办」——这一段正是统一客户端契约与专项设计的增量：路径格式对齐 iNode 降低插件开发成本，传输与可靠性由统一采集器兜底。</div>
+
+<!-- ================= 08 ================= -->
+<h2 class="sec" id="sec08"><span class="no">08</span>指令交互设计</h2>
+<div class="secdesc">一条链路、一个信封、一张指令目录。平台下发与 UI 本地操作共用同一 CMD 通道与审计视图。</div>
+
+<h3 class="sub" id="s8-1">8.1 控制面链路</h3>
+<pre class="code">平台 / UI
+   │  WSS 下行（平台）或 POST /cmd（UI）
+   ▼
+Agent Core ── 权限校验 / 限频 / 审计留痕 / 分发到目标适配进程队列
+   │  IPC CMD（Protobuf 信封，控制队列）
+   ▼
+适配进程 ── 校验 contract_ver → 调 SDK API → 立即回 ACCEPTED ── 异步回 RESULT</pre>
+
+<h3 class="sub" id="s8-2">8.2 指令信封</h3>
+<table>
+<tr><th>字段</th><th>说明</th></tr>
+<tr><td class="k">cmd_id</td><td>全局唯一（Supervisor 生成），回执凭据</td></tr>
+<tr><td class="k">target</td><td>plugin_id（av-antian / aidr-fc）</td></tr>
+<tr><td class="k">type</td><td>指令类型（见 8.3 目录）</td></tr>
+<tr><td class="k">payload</td><td>按 type 定义的参数体</td></tr>
+<tr><td class="k">issued_by</td><td>platform / ui（审计区分来源）</td></tr>
+<tr><td class="k">expire_at</td><td>过期时间（终端离线补发时丢弃过期指令）</td></tr>
+<tr><td class="k">need_receipt</td><td>是否要求 RESULT 回执（默认 true）</td></tr>
+</table>
+
+<h3 class="sub" id="s8-3">8.3 指令目录</h3>
+<table>
+<tr><th>指令</th><th>目标</th><th>payload 要点</th><th>执行模型</th><th>结果</th></tr>
+<tr><td class="k">SCAN_NOW</td><td>AV</td><td>范围（全盘/快速/自定义路径）</td><td class="k">长任务</td><td>task_id + PROGRESS 事件 + RESULT（报告摘要）</td></tr>
+<tr><td class="k">SCAN_CANCEL</td><td>AV</td><td>task_id</td><td>即时</td><td>RESULT（已取消）</td></tr>
+<tr><td class="k">UPDATE_LIB</td><td>AV</td><td>通道（默认/紧急）</td><td class="k">长任务</td><td>RESULT（新版本号 / 失败原因）；失败自动回滚</td></tr>
+<tr><td class="k">QUARANTINE_ADD / RESTORE</td><td>AV</td><td>威胁 ID / 文件指纹</td><td>即时</td><td>RESULT（成功 / 已隔离数）</td></tr>
+<tr><td class="k">WHITELIST_ADD / DEL</td><td>AV</td><td>路径或哈希 + 有效期</td><td>即时</td><td>RESULT；带审计与有效期防止永久信任</td></tr>
+<tr><td class="k">POLICY_PUSH</td><td>AIDR</td><td>策略包版本 + 灰度标记</td><td>即时</td><td>RESULT（加载结果）；失败保持旧策略</td></tr>
+<tr><td class="k">MODEL_UPDATE</td><td>AIDR</td><td>模型包版本</td><td class="k">长任务</td><td>RESULT；加载期旧模型继续服务</td></tr>
+<tr><td class="k">DETECT_INHIBIT</td><td>AIDR</td><td>session_id / 全局 + 窗口时长</td><td>即时</td><td>RESULT（抑制生效起止）</td></tr>
+<tr><td class="k">CONFIG_SET</td><td>两者</td><td>键值集（限速 / 阈值 / 排除路径）</td><td>即时</td><td>RESULT（生效项 / 拒绝项）</td></tr>
+<tr><td class="k">LOG_FETCH</td><td>两者</td><td>时间窗 / 级别 / 大小上限</td><td>即时</td><td>zstd 数据面小批量（复用专项设计限频）</td></tr>
+</table>
+
+<h3 class="sub" id="s8-4">8.4 长任务模型（扫描 / 升级 / 模型更新）</h3>
+<table>
+<tr><th>要素</th><th>设计</th></tr>
+<tr><td class="k">并发控制</td><td>全盘扫描单并发；UPDATE_LIB 全局排队（AV 与 AIDR 升级错峰，避免同时抢 IO/CPU）</td></tr>
+<tr><td class="k">进度事件</td><td>适配器周期写 progress 事件（JSONL，P2），采集器进 WAL，UI 任务中心从本地缓存读 —— 进度不上控制面，避免刷屏</td></tr>
+<tr><td class="k">超时</td><td>任务无进度事件超过 10 分钟 → Supervisor 标记疑似挂死，先查询后强制取消</td></tr>
+<tr><td class="k">取消</td><td>SCAN_CANCEL 必须可取消任意阶段；引擎不支持取消时适配器返回明确「不可取消」而非假成功</td></tr>
+<tr><td class="k">崩溃续接</td><td>适配进程崩溃后重启，扫描任务不自动续跑；RESULT 标 interrupted + 已扫描范围，由平台/用户决定重扫</td></tr>
+</table>
+
+<h3 class="sub" id="s8-5">8.5 指令交互时序（以平台下发全盘扫描为例）</h3>
+<div class="arch">
+<svg viewBox="0 0 1140 480" xmlns="http://www.w3.org/2000/svg" font-family="Microsoft YaHei,sans-serif">
+<defs>
+<marker id="ab" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#31d0ff"/></marker>
+<marker id="ay" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#ffd257"/></marker>
+<marker id="ag" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#3ee08f"/></marker>
+</defs>
+<text x="570" y="16" text-anchor="middle" font-size="13" font-weight="bold" fill="#eaf3ff">指令交互时序：SCAN_NOW 全盘扫描（平台 → 终端 → UI 同步可见）</text>
+
+<rect x="120" y="30" width="160" height="34" rx="6" fill="#1a2440" stroke="#2e4573"/>
+<text x="200" y="52" text-anchor="middle" font-size="12" font-weight="bold" fill="#ffd257">平台（管理中心）</text>
+<rect x="420" y="30" width="180" height="34" rx="6" fill="#121c33" stroke="#2e4573"/>
+<text x="510" y="52" text-anchor="middle" font-size="12" font-weight="bold" fill="#eaf3ff">Agent Core</text>
+<rect x="740" y="30" width="170" height="34" rx="6" fill="#1a1428" stroke="#7c5cff"/>
+<text x="825" y="52" text-anchor="middle" font-size="12" font-weight="bold" fill="#c9b8ff">AV 适配进程</text>
+<rect x="30" y="30" width="70" height="34" rx="6" fill="#182645" stroke="#2e4573"/>
+<text x="65" y="52" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#cfe0f7">UI</text>
+
+<line x1="65" y1="64" x2="65" y2="440" stroke="#233457" stroke-dasharray="4 4"/>
+<line x1="200" y1="64" x2="200" y2="440" stroke="#233457" stroke-dasharray="4 4"/>
+<line x1="510" y1="64" x2="510" y2="440" stroke="#233457" stroke-dasharray="4 4"/>
+<line x1="825" y1="64" x2="825" y2="440" stroke="#233457" stroke-dasharray="4 4"/>
+
+<line x1="200" y1="90" x2="510" y2="90" stroke="#ffd257" stroke-width="1.6" marker-end="url(#ay)"/>
+<text x="355" y="82" text-anchor="middle" font-size="11" fill="#ffd257">WSS：CMD{SCAN_NOW, cmd_id, expire}</text>
+<line x1="510" y1="120" x2="825" y2="120" stroke="#ffd257" stroke-width="1.6" marker-end="url(#ay)"/>
+<text x="668" y="112" text-anchor="middle" font-size="11" fill="#ffd257">IPC CMD → 适配进程队列</text>
+<line x1="825" y1="150" x2="510" y2="150" stroke="#ffd257" stroke-width="1.6" marker-end="url(#ay)"/>
+<text x="668" y="142" text-anchor="middle" font-size="11" fill="#ffd257">ACCEPTED{task_id}</text>
+<line x1="510" y1="180" x2="200" y2="180" stroke="#ffd257" stroke-width="1.6" marker-end="url(#ay)"/>
+<text x="355" y="172" text-anchor="middle" font-size="11" fill="#ffd257">WSS：ACK{task_id}（指令闭环）</text>
+<line x1="825" y1="214" x2="920" y2="214" stroke="#31d0ff" stroke-width="1.5" marker-end="url(#ab)"/>
+<text x="878" y="240" text-anchor="middle" font-size="10" fill="#31d0ff">写 progress/</text>
+<text x="878" y="256" text-anchor="middle" font-size="10" fill="#31d0ff">事件 JSONL</text>
+<line x1="920" y1="284" x2="825" y2="284" stroke="#31d0ff" stroke-width="1.5" marker-end="url(#ab)"/>
+<text x="945" y="288" font-size="10" fill="#31d0ff">采集器读文件</text>
+<line x1="510" y1="284" x2="510" y2="284" stroke="#31d0ff"/>
+<line x1="825" y1="284" x2="510" y2="284" stroke="#31d0ff" stroke-width="1.5" marker-end="url(#ab)"/>
+<text x="668" y="276" text-anchor="middle" font-size="11" fill="#31d0ff">进度进本地缓存（UI 任务中心可见，不刷控制面）</text>
+<line x1="825" y1="330" x2="510" y2="330" stroke="#31d0ff" stroke-width="1.5" marker-end="url(#ab)"/>
+<text x="668" y="322" text-anchor="middle" font-size="11" fill="#31d0ff">RESULT（扫描完成：发现数 / 报告文件就绪）</text>
+<line x1="510" y1="360" x2="200" y2="360" stroke="#31d0ff" stroke-width="1.5" marker-end="url(#ab)"/>
+<text x="355" y="352" text-anchor="middle" font-size="11" fill="#31d0ff">WSS：结果上报（P1）→ 画像 / 工单</text>
+<line x1="510" y1="396" x2="65" y2="396" stroke="#3ee08f" stroke-width="1.5" marker-end="url(#ag)"/>
+<text x="288" y="388" text-anchor="middle" font-size="11" fill="#3ee08f">本地 WS：任务完成通知 → 告警流 / 任务中心</text>
+<text x="570" y="466" text-anchor="middle" font-size="11" fill="#5f7396">要点：控制面只走 ACCEPTED / RESULT 两次闭环；高频进度只走数据面与本地缓存；UI 全程无 SDK 感知</text>
+</svg>
+</div>
+
+<!-- ================= 09 ================= -->
+<h2 class="sec" id="sec09"><span class="no">09</span>统一事件模型与字段映射</h2>
+<div class="secdesc">两个 SDK 的私有产出在适配器内归一为统一事件信封，平台画像与 Agentic SOC 只消费一套模型。</div>
+
+<h3 class="sub" id="s9-1">9.1 统一信封</h3>
+<pre class="code">{
+  "schema": "av.threat.v1",            <span class="cm">// 按源定义 schema</span>
+  "seq": 18342,                        <span class="cm">// 适配器内单调递增，幂等去重键</span>
+  "event_time": "2026-11-24T09:12:33.102+08:00",
+  "ingest_time": "2026-11-24T09:12:35.860+08:00",
+  "source": "av-antian",
+  "priority": "P0",
+  "trace_id": "gw-7f3a...",            <span class="cm">// 可选：与网关侧 AI 审计链路关联</span>
+  "payload": { ... }                   <span class="cm">// 按 schema 的私有字段</span>
+}</pre>
+
+<h3 class="sub" id="s9-2">9.2 AV 病毒事件字段映射</h3>
+<table>
+<tr><th>统一字段</th><th>来源（SDK 概念）</th><th>说明</th></tr>
+<tr><td class="k">threat_name</td><td>引擎判定名</td><td>透传</td></tr>
+<tr><td class="k">threat_level</td><td>引擎等级</td><td>映射为 high / medium / low 三级</td></tr>
+<tr><td class="k">file_path / file_hash</td><td>检出对象</td><td>哈希统一 SHA-256</td></tr>
+<tr><td class="k">detect_source</td><td>实时防护 / 按需扫描</td><td>rtp / scan，画像区分主动防御与主动扫除</td></tr>
+<tr><td class="k">action_taken</td><td>处置结果</td><td>quarantined / cleaned / blocked / pending（pending 必须闭环）</td></tr>
+<tr><td class="k">scan_task_id</td><td>任务上下文</td><td>可关联回 SCAN_NOW 任务</td></tr>
+</table>
+
+<h3 class="sub" id="s9-3">9.3 AIDR 事件字段映射</h3>
+<table>
+<tr><th>统一字段</th><th>来源（SDK 概念）</th><th>说明</th></tr>
+<tr><td class="k">ai_scene</td><td>检测场景</td><td>prompt_injection / tool_risk / data_exfil / policy_violation</td></tr>
+<tr><td class="k">risk_level</td><td>风险等级</td><td>映射为 high / medium / low</td></tr>
+<tr><td class="k">session_id / trace_id</td><td>会话上下文</td><td>与 AI 网关全链路审计共链路，L2~L6 分层定位</td></tr>
+<tr><td class="k">agent_id</td><td>智能体标识</td><td>对齐 ARN 格式（aigw:{type}:{region}:{resource_id}）</td></tr>
+<tr><td class="k">evidence</td><td>判定依据</td><td>截断后的片段（≤2KB），完整证据走 LOG_FETCH</td></tr>
+<tr><td class="k">action_taken</td><td>响应动作</td><td>blocked / warned / logged / inhibited</td></tr>
+</table>
+
+<!-- ================= 10 ================= -->
+<h2 class="sec" id="sec10"><span class="no">10</span>升级与配置管理</h2>
+<div class="secdesc">插件包打包安装规范（对齐 iNode ZIP 流程并强制验签）+ 病毒库 / 模型包 / 策略包 / 适配进程四类资产独立升级，统一由平台编排、终端执行、失败回滚、灰度放量。</div>
+
+<h3 class="sub" id="s10-1">10.1 插件包规范与安装流程（对齐 iNode）</h3>
+<p>采纳 iNode 的 ZIP 打包结构与安装流程，并在「验证配置」与「登记」两步之间强制插入验签：</p>
+<pre class="code">av_adapter.zip
+├── plugin_config.jsonc       <span class="cm"># 配置文件（必需，含 Security 扩展区块）</span>
+├── bin/                      <span class="cm"># 可执行文件目录（至少一个）</span>
+│   ├── av_adapter.exe        <span class="cm"># Backend（适配进程）</span>
+│   ├── avl_engine.dll        <span class="cm"># 安天引擎库（三方 SDK 交付物）</span>
+│   └── vc_redist/            <span class="cm"># 运行时依赖</span>
+├── sig/
+│   └── plugin.manifest.sign  <span class="cm"># minisign 签名（必需，Security.Signature 指向）</span>
+├── assets/                   <span class="cm"># 初始特征包 / 模型包（可选）</span>
+└── icon.png                  <span class="cm"># 图标（可选）</span></pre>
+
+<table>
+<tr><th>步骤</th><th>动作</th><th>失败处理</th></tr>
+<tr><td class="k">① 解压</td><td>用户/平台触发安装，Agent Core 解压至 plugins/{AppID}/</td><td>目录冲突：比对版本，低版本拒绝覆盖安装</td></tr>
+<tr><td class="k">② 验签</td><td class="rec">SHA-256 完整性 + minisign 签名校验（对齐 Rustinel rules install 机制），拒绝无签名 / 验签失败包</td><td>拒绝安装并上报审计事件</td></tr>
+<tr><td class="k">③ 验证配置</td><td>plugin_config 结构校验（iNode 规则：Type 与 Frontend/Backend 至少一个匹配、bin 至少一个可执行）+ Security 区块必填 + DataSources 路径白名单校验（禁越出插件目录）</td><td>拒绝安装并给出明确原因码</td></tr>
+<tr><td class="k">④ 登记</td><td>写本地登记库（AppID / Version / 能力集 / DataSources / 灰度组）；RequireAdmin=true 则此步在提权安装事务内完成；RebootRequired=true 标记重启待办并 UI 提示</td><td>回滚解压目录，登记失败不留半装态</td></tr>
+</table>
+<div class="note warn">与 iNode 指南的差异：iNode 安装流程为「解压 → 验配置 → 登记」，信任用户选择；统一客户端在中间强制验签，且 DataSources 声明的路径必须收敛在插件目录内（防止声明 <code>../../</code> 类路径劫持采集器）。</div>
+
+<h3 class="sub" id="s10-2">10.2 资产升级通道</h3>
+<table>
+<tr><th>资产</th><th>升级通道</th><th>频率</th><th>失败处理</th></tr>
+<tr><td class="k">AV 病毒库</td><td>平台下发 UPDATE_LIB 或终端定时拉取（凭证由 Agent Core 注入）</td><td>小时级</td><td class="rec">保留旧库继续防护 + 状态卡降级原因 + 重试退避</td></tr>
+<tr><td class="k">AV 引擎库</td><td>适配进程整包升级（ Supervisor 停旧进程 → 换包 → 拉新）</td><td>月级</td><td>升级前校验签名；失败回滚旧包</td></tr>
+<tr><td class="k">AIDR 模型包</td><td>MODEL_UPDATE 指令下发，包签名校验</td><td>周级</td><td class="rec">双包共存，加载失败自动回旧模型，服务不中断</td></tr>
+<tr><td class="k">AIDR 策略包</td><td>POLICY_PUSH，版本号管理</td><td>天级</td><td>失败保持旧策略 + degrade_reason 展示</td></tr>
+<tr><td class="k">适配进程自身</td><td>随统一客户端插件升级机制（灰度 1% → 10% → 100%）</td><td>季级</td><td>灰度期崩溃率 / 事件量监控，异常自动暂停放量</td></tr>
+</table>
+<div class="note">签名校验规则对齐 Rustinel 的 rules install/update 机制（SHA-256 + minisign），第三方资产包统一走同一套签名与校验实现。</div>
+
+<!-- ================= 11 ================= -->
+<h2 class="sec" id="sec11"><span class="no">11</span>安全与权限</h2>
+<table>
+<tr><th>风险面</th><th>措施</th></tr>
+<tr><td class="k">本地 API 被滥用</td><td>仅 127.0.0.1 回环 + 每次启动轮换的本地 token；高危操作（隔离恢复 / 白名单）要求本地管理员口令</td></tr>
+<tr><td class="k">IPC 伪造指令</td><td>命名管道 / UDS ACL 限定进程身份；CMD 信封带时间戳与序列号防重放（对齐 OBO/mTLS 防重放思路）</td></tr>
+<tr><td class="k">SDK 升级劫持</td><td>所有资产包（病毒库 / 模型 / 策略 / 引擎）强签名校验，拒绝无签名或验签失败包</td></tr>
+<tr><td class="k">授权凭证泄漏</td><td>凭证 Agent Core 内存保管 + 受控注入，适配进程不落盘明文；日志脱敏规则覆盖凭证字段</td></tr>
+<tr><td class="k">隔离区逃逸</td><td>隔离文件由引擎加密存放；RESTORE 指令需平台或本地双因素之一，且全程审计</td></tr>
+<tr><td class="k">UI 提权</td><td>UI 进程低权限运行；一切需提权的操作由 Agent Core 通过最小授权服务代理完成</td></tr>
+</table>
+
+<!-- ================= 12 ================= -->
+<h2 class="sec" id="sec12"><span class="no">12</span>资源控制与共存</h2>
+<h3 class="sub" id="s12-1">12.1 资源配额与模式抑制</h3>
+<table>
+<tr><th>机制</th><th>设计</th></tr>
+<tr><td class="k">进程配额</td><td>Windows Job Object / cgroups：AV 适配进程 CPU ≤ 40%（可被 CONFIG_SET 下调）、内存 1.5GB；AIDR 内存 2GB（含模型）</td></tr>
+<tr><td class="k">扫描限速</td><td>全盘扫描默认低 IO 优先级 + 可配置 IOPS 上限；用户主动发起的扫描提升优先级</td></tr>
+<tr><td class="k">模式抑制</td><td>游戏 / 演示 / 会议模式（UI 一键或平台下发）：暂停全盘扫描、AI 检测降采样、toast 静默，实时防护保持</td></tr>
+<tr><td class="k">升级错峰</td><td>病毒库与模型包升级全局排队，默认业务低峰（画像学习各终端空闲时段）</td></tr>
+</table>
+<h3 class="sub" id="s12-2">12.2 与第三方 AV 共存</h3>
+<table>
+<tr><th>场景</th><th>策略</th></tr>
+<tr><td class="k">检测到第三方 AV</td><td>安天引擎默认进被动模式（仅按需扫描 / 不装 minifilter），UI 状态卡明示「被动模式」</td></tr>
+<tr><td class="k">平台策略覆盖</td><td>平台可按终端组强制主防模式（替换决策在平台做，终端只执行）</td></tr>
+<tr><td class="k">卸载竞态</td><td>第三方 AV 卸载后 10 分钟内完成主防模式切换并上报，切换期间状态卡显示过渡态</td></tr>
+</table>
+
+<!-- ================= 13 ================= -->
+<h2 class="sec" id="sec13"><span class="no">13</span>兼容性矩阵</h2>
+<table>
+<tr><th>平台</th><th>AV 引擎</th><th>AIDR SDK</th><th>备注</th></tr>
+<tr><td class="k">Windows 10/11 x64</td><td class="rec">完整（实时防护 + 按需扫描 + minifilter）</td><td class="rec">完整（含 AI Agent 会话采集点）</td><td>P0 主战场</td></tr>
+<tr><td class="k">Windows Server</td><td class="rec">完整</td><td class="mid">完整（Agent 场景按需启用）</td><td>服务器场景扫描限速默认更保守</td></tr>
+<tr><td class="k">Linux 主流发行版</td><td class="mid">按需扫描可用；实时防护依赖 fanotify，按版本降级</td><td class="mid">完整（Agent 服务器场景）</td><td>P1</td></tr>
+<tr><td class="k">macOS</td><td class="mid">按需扫描可用；实时防护走 Endpoint Security 框架（参考 Rustinel macOS 限制经验）</td><td class="mid">待与厂商确认</td><td>P2</td></tr>
+</table>
+<div class="note warn">macOS 注意复用选型报告 5.2.2 的源码结论：macOS 平台终止逻辑存在 PID 复用竞态，AV 适配进程在 macOS 上的守护策略必须用进程组 / 责任终止标识而非裸 PID 判断，避免误杀无关进程。</div>
+
+<!-- ================= 14 ================= -->
+<h2 class="sec" id="sec14"><span class="no">14</span>实施计划与工作量</h2>
+<table>
+<tr><th>阶段</th><th>内容</th><th>交付物</th><th>工作量</th></tr>
+<tr><td class="k"><span class="tag t-red">P0</span> 阶段一（与终端侧 M1 同步）</td><td>适配框架（契约实现 + plugin_config 声明式配置解析与安装验签 + 回调桥接 + 落盘）、AV 适配器最小集（扫描 + 病毒事件）、Agent Core CMD 通路</td><td>AV 适配进程可运行、病毒事件全链路上平台、ZIP 插件包可安装</td><td>6~8 人周</td></tr>
+<tr><td class="k"><span class="tag t-red">P0</span> 阶段一</td><td>AIDR 适配器最小集（检测调用 + 告警落盘 + 策略下发）</td><td>AI 告警进统一画像，trace_id 打通网关审计</td><td>3~4 人周</td></tr>
+<tr><td class="k"><span class="tag t-org">P1</span> 阶段二</td><td>GUI 融合全量（状态卡 / 告警流 / 隔离区 / 任务中心 / 模式抑制）、升级与灰度机制、资源配额</td><td>用户视角统一客户端成型</td><td>5~7 人周</td></tr>
+<tr><td class="k"><span class="tag t-org">P1</span> 阶段二</td><td>长任务模型完善（进度 / 取消 / 崩溃续接）、LOG_FETCH 联调、共存策略</td><td>运维可远程排障</td><td>3~4 人周</td></tr>
+<tr><td class="k"><span class="tag t-grn">P2</span> 阶段三</td><td>Linux 实防降级适配、macOS 评估、多引擎扩展预留验证</td><td>平台覆盖扩展</td><td>2~4 人周</td></tr>
+</table>
+<div class="note grn">合计 19~27 人周。此为「统一客户端容器 + 第三方集成」增量，含在《落地方案设计》整体 36~52 人周估算之内，不重复计费；其中 GUI 融合与适配框架可并行两条线推进。</div>
+
+<!-- ================= 15 ================= -->
+<h2 class="sec" id="sec15"><span class="no">15</span>风险与对策</h2>
+<table>
+<tr><th>风险</th><th>等级</th><th>对策</th></tr>
+<tr><td class="k">SDK 回调在高并发下丢事件或死锁</td><td><span class="tag t-red">高</span></td><td>回调只入队；PoC 阶段压测回调吞吐（≥2000 事件/秒）并纳入阶段一出口条件</td></tr>
+<tr><td class="k">AV 引擎与国产 OS / 加密驱动冲突（minifilter 栈）</td><td><span class="tag t-red">高</span></td><td>兼容性矩阵实测先行；冲突时自动降被动模式并上报</td></tr>
+<tr><td class="k">双 SDK 同时升级打满磁盘 IO</td><td><span class="tag t-org">中</span></td><td>全局升级队列错峰 + IO 配额</td></tr>
+<tr><td class="k">模型包体积大，弱网终端升级失败率高</td><td><span class="tag t-org">中</span></td><td>断点续传 + 差分包 + 双包共存回滚</td></tr>
+<tr><td class="k">UI 壳选型摇摆（原生 vs Electron）</td><td><span class="tag t-org">中</span></td><td>阶段一先用极简原生壳验证协议层，UI 全量放阶段二，选型在 M1 结束时定</td></tr>
+<tr><td class="k">第三方 SDK 授权到期导致批量降级</td><td><span class="tag t-org">中</span></td><td>平台侧授权到期监控，提前 30 天告警；终端降级原因透出</td></tr>
+</table>
+
+<!-- ================= 16 ================= -->
+<h2 class="sec" id="sec16"><span class="no">16</span>附录：文档关系与修订记录</h2>
+<table>
+<tr><th>文档</th><th>关系</th></tr>
+<tr><td class="k">《开源 EDR 框架选型评估报告 v3.9》</td><td>上游：Rustinel 4.05 选型结论、候选框架日志方式对比（本文 7 章管道的上游依据）</td></tr>
+<tr><td class="k">《自研 AI 防护终端客户端落地方案设计 v1.2》</td><td>上游：Supervisor 进程模型、插件契约 C1~C12、IPC / WAL / 控制面七类消息</td></tr>
+<tr><td class="k">《Supervisor 插件日志采集专项设计 v1.0》</td><td>上游：三类 Reader / offset / 三级队列 / LOG_FETCH，本文第 7 章直接复用</td></tr>
+<tr><td class="k">《iNode 插件系统开发指南 1.0.0》</td><td>对齐基准：plugin_config.jsonc 声明式配置、ZIP 打包安装流程、ui/background/mix 插件类型、LogPath 日志约定、Runtime 生命周期字段（本文 4.4 / 4.5 / 6.6 / 7.4 / 10.1 节为对齐与收紧结论）</td></tr>
+<tr><td class="k">本文 v1.0</td><td>新增：第三方 SDK 集成形态决策、适配层、GUI 融合、指令目录、事件映射、升级与共存</td></tr>
+</table>
+<table>
+<tr><th>版本</th><th>日期</th><th>变更</th></tr>
+<tr><td class="k">v1.0</td><td>2026-11-24</td><td>首版：16 章，3 SVG，13 表；覆盖集成形态决策 / 适配层 / GUI 融合 / 日志采集 / 指令交互 / 升级 / 安全 / 资源 / 兼容 / 实施 / 风险</td></tr>
+<tr><td class="k">v1.1</td><td>2026-11-24</td><td>对齐 iNode 插件系统开发指南：新增 4.4 声明式插件配置（plugin_config.jsonc + Security/DataSources 扩展区块 + AV 示例）、4.5 插件自治与安全基线边界、6.6 插件窗口宿主（ui/mix）、7.4 LogPath 约定与采集源自动注册、10.1 插件包规范与安装流程（ZIP + 强制验签四步）；05 章吸收 Runtime 字段（AutoLoad/StartDelay/StopTimeout）；00 摘要与 14 章计划同步</td></tr>
+<tr><td class="k">v1.2</td><td>2026-11-24</td><td>03 总体架构图重绘（1140x640）：EDR 插件（Rustinel 子进程，P0）与 AIDR 插件（方寸 AIDR 子进程）升为一等公民插件位，AV 同契约扩展；Agent Core 突出三大职责块（① 进程托管 ② 日志采集与上报：三类 Reader→WAL→批量上传 ③ 指令路由与回应：CMD 路由 + ACCEPTED/RESULT 回执）；GUI 壳内嵌 EDR 插件界面（Rustinel：告警流/检测规则状态/扫描响应入口）与 AIDR 插件界面（方寸：AI 资产台账/行为风险卡/策略抑制入口）两个面板，明确「GUI 包装插件界面、操作一律转 CMD 指令」；保留内核驱动层例外直连与通道图例</td></tr>
+</table>
+
+<footer>
+<span>统一客户端 · 第三方插件 SDK 集成设计方案 v1.2 · 2026-11-24</span>
+<span>上游：落地方案设计 v1.2 / 日志采集专项设计 v1.0 / 选型评估报告 v3.9 / iNode 插件系统开发指南 1.0.0</span>
+</footer>
+
+</div>
+</body>
+</html>

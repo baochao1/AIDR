@@ -1,0 +1,1267 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>开源 EDR 框架选型评估报告（终版）</title>
+<style>
+:root{
+  --bg:#0b1220; --panel:#121c33; --line:#233457; --line2:#2e4573;
+  --txt:#dbe6f5; --txt2:#93a7c8; --txt3:#5f7396;
+  --accent:#31d0ff; --accent2:#7c5cff;
+  --red:#ff5c74; --orange:#ffb03a; --green:#3ee08f; --yellow:#ffd257;
+  --mono:'Consolas','JetBrains Mono',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--txt);font-family:"Microsoft YaHei","PingFang SC","Segoe UI",sans-serif;line-height:1.75;font-size:14px}
+.wrap{max-width:1240px;margin:0 auto;padding:28px 34px 60px}
+.hero{position:relative;border:1px solid var(--line);border-radius:14px;padding:36px 40px;background:linear-gradient(135deg,#101c38 0%,#0c1526 55%,#141d44 100%);overflow:hidden}
+.hero::before{content:"";position:absolute;inset:0;background:
+ radial-gradient(620px 220px at 88% 0%,rgba(124,92,255,.20),transparent 60%),
+ radial-gradient(520px 240px at 8% 100%,rgba(49,208,255,.15),transparent 60%);pointer-events:none}
+.hero h1{font-size:27px;letter-spacing:2px;background:linear-gradient(90deg,#e8f4ff,#31d0ff 55%,#7c5cff);-webkit-background-clip:text;background-clip:text;color:transparent;position:relative}
+.hero .sub{color:var(--txt2);margin-top:8px;font-size:13.5px;position:relative}
+.meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px;position:relative}
+.meta span{border:1px solid var(--line2);border-radius:6px;padding:3px 12px;font-size:12px;color:var(--txt2);background:rgba(15,24,48,.7)}
+.meta b{color:var(--accent);font-weight:600}
+h2.sec{margin:48px 0 6px;font-size:19px;letter-spacing:1px;display:flex;align-items:center;gap:10px}
+h2.sec .no{font-family:var(--mono);font-size:12px;color:var(--accent);border:1px solid var(--line2);border-radius:4px;padding:1px 8px;background:rgba(49,208,255,.08)}
+h2.sec::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--line2),transparent)}
+.secdesc{color:var(--txt3);font-size:12.5px;margin-bottom:16px}
+h3.sub{margin:22px 0 8px;font-size:15px;color:#eaf3ff;border-left:3px solid var(--accent);padding-left:10px}
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:repeat(2,1fr)}
+.g3{grid-template-columns:repeat(3,1fr)}
+.card{border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:16px 18px}
+.card .ct{font-size:14.5px;font-weight:700;color:#eaf3ff;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.card .cb{color:var(--txt2);font-size:12.5px;margin-top:6px}
+.tag{font-size:11px;border-radius:4px;padding:1px 8px;white-space:nowrap;font-weight:600}
+.t-red{background:rgba(255,92,116,.15);color:var(--red);border:1px solid rgba(255,92,116,.4)}
+.t-org{background:rgba(255,176,58,.14);color:var(--orange);border:1px solid rgba(255,176,58,.4)}
+.t-grn{background:rgba(62,224,143,.13);color:var(--green);border:1px solid rgba(62,224,143,.4)}
+.t-blu{background:rgba(49,208,255,.12);color:var(--accent);border:1px solid rgba(49,208,255,.4)}
+.t-pur{background:rgba(124,92,255,.13);color:#a995ff;border:1px solid rgba(124,92,255,.4)}
+table{width:100%;border-collapse:collapse;margin:14px 0 6px;font-size:12.5px}
+th{background:linear-gradient(180deg,#182645,#131f3a);color:#cfe0f7;border:1px solid var(--line2);padding:9px 10px;text-align:left;font-weight:600;white-space:nowrap}
+td{border:1px solid var(--line);padding:8px 10px;color:var(--txt2);vertical-align:top}
+tr:nth-child(even) td{background:rgba(18,28,51,.5)}
+tr:hover td{background:rgba(49,208,255,.05)}
+td.k{color:#cfe0f7;font-weight:600;white-space:nowrap;background:rgba(24,38,69,.45)!important}
+.rec{color:var(--green);font-weight:700}.bad{color:var(--red);font-weight:700}.mid{color:var(--orange);font-weight:600}
+.note{border-left:3px solid var(--accent);background:rgba(49,208,255,.06);border-radius:0 8px 8px 0;padding:12px 16px;color:var(--txt2);font-size:12.5px;margin:14px 0}
+.note.warn{border-left-color:var(--orange);background:rgba(255,176,58,.07)}
+.note.risk{border-left-color:var(--red);background:rgba(255,92,116,.07)}
+.note.grn{border-left-color:var(--green);background:rgba(62,224,143,.06)}
+.stage{display:flex;gap:0;margin:18px 0}
+.stg{flex:1;border:1px solid var(--line2);padding:14px 16px;background:var(--panel)}
+.stg:first-child{border-radius:10px 0 0 10px}.stg:last-child{border-radius:0 10px 10px 0}
+.stg .sn{font-family:var(--mono);font-size:11px;color:var(--accent)}
+.stg .st{font-weight:700;color:#eaf3ff;margin:2px 0 6px;font-size:13.5px}
+.stg .sd{font-size:12px;color:var(--txt2)}
+.stg.p0{border-top:2px solid var(--red)}.stg.p1{border-top:2px solid var(--orange)}.stg.p2{border-top:2px solid var(--accent)}
+.arch{margin:16px 0;border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:8px}
+footer{margin-top:50px;border-top:1px solid var(--line);padding-top:14px;color:var(--txt3);font-size:12px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+ul.cl{margin:6px 0 2px 18px;color:var(--txt2)}
+ul.cl li{margin:3px 0}
+.verdict{margin-top:12px;border:1px dashed var(--line2);border-radius:8px;padding:10px 14px;font-size:12.5px}
+.verdict b{color:var(--accent)}
+.small{font-size:12px;color:var(--txt3)}
+code{font-family:var(--mono);font-size:11.5px;color:#8fd7ff;background:rgba(49,208,255,.08);border:1px solid rgba(49,208,255,.2);border-radius:3px;padding:0 4px}
+.toc{margin-top:24px}
+.toc .toclist{columns:3;column-gap:28px;margin-top:10px}
+.toc .tocitem{break-inside:avoid;margin-bottom:8px}
+.toc a{display:block;text-decoration:none;line-height:1.85}
+.toc a.l1{color:#dbe6f5;font-size:12.5px;font-weight:600}
+.toc a.l2{padding-left:16px;color:var(--txt3);font-size:11.5px}
+.toc a:hover{color:var(--accent)}
+.toc .no2{font-family:var(--mono);color:var(--accent);margin-right:6px;font-size:11px}
+@media(max-width:980px){.toc .toclist{columns:1}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ================= HEADER ================= -->
+<div class="hero">
+  <h1>开源 EDR 框架选型评估报告（终版）</h1>
+  <div class="sub">基于开源 EDR 框架的自研终端客户端包装选型 · AI 防护场景 · 「平台侧（管理层）+ 终端侧（执行层）」分层设计 · 插件进程化架构 · 双平面上报基线</div>
+  <div class="meta">
+    <span>版本：<b>终版 v4.2</b>（AI 防护终端 Agent 适配终版 · 完整整合版 · 6.3 目标架构图精简：默认插件池 2×3 网格 · 移除可选增强框 · 响应与自有扩展合并）</span>
+    <span>评估对象：<b>osquery · Rustinel · Elkeid · Wazuh · Velociraptor · OpenEDR</b></span>
+    <span>核心集成：<b>方寸 AIDR SDK（AI 资产发现与防护）</b></span>
+    <span>配套组件：<b>Sysmon（可选增强）/ Fibratus（备选）/ Fleet orbit（工程参考）</b></span>
+    <span>日期：<b>2026-11-23</b></span>
+  </div>
+</div>
+
+
+<!-- ================= 目录 ================= -->
+<div class="card toc" id="toc">
+  <div class="ct">报告目录 <span class="small">点击跳转 · 13 章 + 修订记录</span></div>
+  <div class="toclist">
+<div class="tocitem"><a class="l1" href="#sec00"><span class="no2">00</span>执行摘要</a>
+</div>
+<div class="tocitem"><a class="l1" href="#sec01"><span class="no2">01</span>项目背景与评估方法</a>
+<a class="l2" href="#s1-1">1.1 自研架构约束（评估基准）</a>
+<a class="l2" href="#s1-2">1.2 评估维度与权重（按双平面基线重定）</a>
+<a class="l2" href="#s1-3">1.3 许可证商用合规前置门禁（先准入，后技术评分）</a>
+<a class="l2" href="#s1-4">1.4 终端 EDR Agent 适配门禁（许可之后、评分之前）</a>
+</div>
+<div class="tocitem"><a class="l1" href="#sec02"><span class="no2">02</span>上报架构基线：双平面设计（已定型）</a>
+<a class="l2" href="#s2-1">2.1 双平面定型</a>
+<a class="l2" href="#s2-2">2.2 数据面关键设计点</a>
+</div>
+<div class="tocitem"><a class="l1" href="#sec03"><span class="no2">03</span>候选框架总览</a>
+<a class="l2" href="#s3-1">3.1 Rustinel 官网横向对比对本项目的校准</a>
+</div>
+<div class="tocitem"><a class="l1" href="#sec04"><span class="no2">04</span>核心对比矩阵</a>
+<a class="l2" href="#s4-1">4.1 候选框架日志收集方式横向对比</a>
+</div>
+<div class="tocitem"><a class="l1" href="#sec05"><span class="no2">05</span>六框架逐一评估（含整体架构图）</a>
+<a class="l2" href="#s5-1">5.1 osquery 3.85 分：评分保留，最终方案排除</a>
+<a class="l2" href="#s5-2">5.2 Rustinel P0 行为采集与本地检测主引擎</a>
+<a class="l2" href="#s5-2-1">5.2.1 Windows ETW 已知盲区（PoC 必测）</a>
+<a class="l2" href="#s5-2-2">5.2.2 源码级事实校准（v1.11.0 · 本地只读审计）</a>
+<a class="l2" href="#s5-2-3">5.2.3 源码级 PoC 验收清单（可直接作为阶段一出口条件）</a>
+<a class="l2" href="#s5-3">5.3 Elkeid Supervisor 主要设计蓝本</a>
+<a class="l2" href="#s5-3-1">5.3.1 Elkeid Host Ability：组件职责</a>
+<a class="l2" href="#s5-3-2">5.3.2 Elkeid Backend Ability 与数据接入</a>
+<a class="l2" href="#s5-4">5.4 Wazuh 排除定案</a>
+<a class="l2" href="#s5-4-1">5.4.1 四大组件与端口基线（官方口径）</a>
+<a class="l2" href="#s5-4-2">5.4.2 六大能力模块与本项目需求的逐项映射</a>
+<a class="l2" href="#s5-5">5.5 Velociraptor 独立取证工具</a>
+<a class="l2" href="#s5-6">5.6 OpenEDR 排除定案</a>
+</div>
+<div class="tocitem"><a class="l1" href="#sec06"><span class="no2">06</span>集成风格决策与目标架构规划</a>
+<a class="l2" href="#s6-1">6.1 插件数据交付风格</a>
+<a class="l2" href="#s6-2">6.2 自研服务端管理平台：两中心与六项能力</a>
+<a class="l2" href="#s6-3">6.3 客户端插件池规划（AI 防护精简版）</a>
+<a class="l2" href="#s6-4">6.4 Supervisor 参考 Elkeid Agent 插件机制（设计级蓝本 · 零代码引入）</a>
+</div>
+<div class="tocitem"><a class="l1" href="#sec07"><span class="no2">07</span>候选插件技术借鉴分析</a>
+<a class="l2" href="#s7-0">7.0 借鉴层级与纪律</a>
+<a class="l2" href="#s7-1">7.1 osquery：插件契约与守护机制（代码级）</a>
+<a class="l2" href="#s7-2">7.2 Rustinel：策略热更新与可观测（代码级）</a>
+<a class="l2" href="#s7-3">7.3 Elkeid：子进程插件管理模型（设计级）</a>
+<a class="l2" href="#s7-4">7.4 Velociraptor：工件即策略与离线采集（设计级）</a>
+<a class="l2" href="#s7-5">7.5 Wazuh：响应编排与规则分层（语料级）</a>
+<a class="l2" href="#s7-6">7.6 Sysmon / OpenEDR：配置驱动与反面教训</a>
+<a class="l2" href="#s7-7">7.7 汇总：自研插件契约设计要点（借鉴来源映射）</a>
+</div>
+<div class="tocitem"><a class="l1" href="#sec08"><span class="no2">08</span>评分矩阵与排名</a>
+</div>
+<div class="tocitem"><a class="l1" href="#sec09"><span class="no2">09</span>许可证传染边界与分发合规（详细）</a>
+<a class="l2" href="#s9-1">9.1 收口型架构下的传染边界分析</a>
+</div>
+<div class="tocitem"><a class="l1" href="#sec10"><span class="no2">10</span>终局定位与选型理由</a>
+<a class="l2" href="#s10-1">10.1 选型理由（三条主轴）</a>
+</div>
+<div class="tocitem"><a class="l1" href="#sec11"><span class="no2">11</span>落地路线与风险清单</a>
+</div>
+<div class="tocitem"><a class="l1" href="#sec12"><span class="no2">12</span>改造工作量（统一口径）</a>
+<a class="l2" href="#s12-1">12.1 成本项拆解（估算中被经验吸收的部分）</a>
+<a class="l2" href="#s12-2">12.2 缓解措施（压缩成本）</a>
+</div>
+<div class="tocitem"><a class="l1" href="#appx"><span class="no2">附</span>修订记录与文档使用说明</a>
+</div>
+  </div>
+</div>
+
+<!-- ================= 执行摘要 ================= -->
+<h2 class="sec" id="sec00"><span class="no">00</span>执行摘要</h2>
+<div class="secdesc">供决策层速览：一段话结论 + 一张终局表 + 一张推荐架构图（详见正文）。</div>
+
+<div class="note grn"><b>一段话结论：</b>在项目明确不需要通用终端资产台账与周期状态查询，且要求实时行为检测 Agent 后，<b>osquery 保留 3.85 分技术评分并参与评分排序，但因产品类型不匹配，最终方案不采用</b>。主链路收敛为 <b>自研 Supervisor + Rustinel（4.05 分，P0 行为采集与本地检测）+ 方寸 AIDR SDK</b>。官网 + 源码 v1.11.0 双重校准后的部署基线是：<b>Windows 为 P0 主战场，Linux 在 eBPF 覆盖范围内分阶段准入，macOS 保持实验性 PoC</b>；Rustinel 默认持续落盘的是 ECS NDJSON <b>告警</b>，不是全量原始遥测，webhook 仅可选且本项目关闭。默认平台消费告警、AI 资产与 AI 行为数据；如需要全量行为检索或平台侧自定义检测，再通过 fork 增加原始事件输出。所有交付数据由 Supervisor 统一 WAL、zstd、HTTP/2 + mTLS 上报。osquery 因仅是端点状态 SQL 查询引擎、缺乏实时本地检测与响应闭环，在最终方案中<b>排除且不进入运行时</b>；其 3.85 分仅用于横向技术比较，不进入最终方案，另保留局部扩展机制参考；<b>Elkeid Agent 作为 Supervisor 生命周期、IPC 与版本管理的主要设计蓝本（AGPL，零代码）</b>，Wazuh/Velociraptor/OpenEDR 定位不变。许可证商用合规已前置为准入门禁。平台侧固定为<b>终端 Agent Center（WS 控制面网关 + HTTP/2 + mTLS 无状态数据接入层）</b>与<b>安全管理中心（AI 资产、策略、ATT&CK 分析、AI 智能体链路行为画像与自动化响应）</b>，通过 Kafka 与控制接口解耦。整体工作量约 36~52 人周，主链路无 GPL/AGPL 传染。</div>
+
+<table>
+  <tr><th style="width:120px">框架</th><th style="width:160px">终局定位</th><th style="width:90px">评分</th><th>一句话理由</th></tr>
+  <tr><td class="k">Rustinel</td><td class="rec">P0 行为采集与本地检测</td><td><b class="rec">4.05</b></td><td>Windows 覆盖最完整，高吞吐热路径优化与本地 Sigma/YARA/IOC 是核心优势；源码 v1.11.0 额外确认六通道丢弃可计数、<code>telemetry.json</code>/<code>heartbeat.json</code> 可外部消费、规则全坏拒绝重载、规则包 SHA-256 + minisign 验签；官方默认输出 ECS 告警，原始遥测持续输出需另行扩展</td></tr>
+  <tr><td class="k">osquery</td><td class="bad">评分保留 / 最终方案排除</td><td><b>3.85</b></td><td>数据面、控制面与插件机制对接优秀，但本质是端点状态 SQL 查询引擎；无本地实时检测和响应闭环，且项目不需要其核心能力，高分不构成入选依据</td></tr>
+  <tr><td class="k">Velociraptor</td><td class="bad">独立取证工具</td><td><b>3.65</b></td><td>取证能力强，但 gRPC+mTLS 深度耦合且为 AGPLv3，仅作 SOC 侧隔离部署的应急工具</td></tr>
+  <tr><td class="k">Elkeid</td><td class="mid">Supervisor 设计蓝本</td><td><b>3.35</b></td><td>重点参考 Agent 生命周期、IPC 与版本管理；gRPC 直发 + AGPL + 社区版 Linux-only，只独立重实现，不引代码或 IDL</td></tr>
+  <tr><td class="k">Wazuh</td><td class="bad">排除（规则语料）</td><td><b>2.55</b></td><td><b>平台型而非 Agent 型</b>：四组件 + 4~6 个开放端口（443/1514/1515/55000/1516）构成完整 SOC，检测结论在 Server 侧产生；私有 TCP/AES 无法对接，GPLv2（Agent/Server）与 5.0 AGPLv3（engine）叠加分发风险。仅保留规则与 ATT&CK 映射语料</td></tr>
+  <tr><td class="k">OpenEDR</td><td class="bad">排除</td><td><b>1.95</b></td><td>2022 年后弃维 + CASL 限制收费 + 私有格式 + 仅 Windows，无引入价值</td></tr>
+</table>
+
+<!-- ================= 01 背景与方法 ================= -->
+<h2 class="sec" id="sec01"><span class="no">01</span>项目背景与评估方法</h2>
+<div class="secdesc">先固化自研架构的技术约束与上报基线，再据此定义评估维度——所有候选框架按同一把尺子打分。</div>
+
+<h3 class="sub" id="s1-1">1.1 自研架构约束（评估基准）</h3>
+<table>
+  <tr><th style="width:230px">层次</th><th style="width:300px">组成</th><th>对开源框架的诉求</th></tr>
+  <tr><td class="k">🔴 平台侧 · 管理层（完全自研）</td><td><b>终端 Agent Center</b>：WS 连接网关（控制面）+ 无状态接入层（数据面 HTTP/2 + mTLS）；<b>安全管理中心</b>：AI 资产发现管理 / 策略统一管理 / 安全分析可视化（MITRE ATT&CK + AI 智能体链路行为画像）/ 自动化响应</td><td><b>不引入任何开源 Server</b>；统一日志由 Agent Center 接入并经 Kafka 分流，安全管理中心消费分析；资产范围仅 AI 专项</td></tr>
+  <tr><td class="k">🟡 终端侧 · 主程序（自研）</td><td>ws 客户端 / 日志收集与上报（数据面收口）/ 插件生命周期管理</td><td>宿主-子进程工程先例；IPC 消息总线契约；传输能力统一收口</td></tr>
+  <tr><td class="k">🟡 终端侧 · 插件（包装开源框架）</td><td>Rustinel 行为采集与检测 / AIDR AI 防护 / AV / 响应，<b>每插件独立进程</b></td><td>优先复用三端原生安全行为采集与检测；避免多个引擎重复订阅同一事件源</td></tr>
+  <tr><td class="k">🟢 方寸 AIDR SDK 集成</td><td>AI 资产发现与防护（独立插件进程形态）</td><td>由主程序拉起/守护/升级；AI 资产、行为与告警经本地文件或 IPC 汇聚上报</td></tr>
+</table>
+
+<h3 class="sub" id="s1-2">1.2 评估维度与权重（按双平面基线重定）</h3>
+<table>
+  <tr><th style="width:80px">权重</th><th style="width:280px">维度</th><th>说明</th></tr>
+  <tr><td><b class="rec">20%</b></td><td class="k">数据面对接成本</td><td>告警本地文件/IPC 交付是必备项；原始遥测持续输出是可选增强项，单独评估 fork 成本；mTLS/WAL/zstd/Kafka 由 Supervisor 承接</td></tr>
+  <tr><td><b>10%</b></td><td class="k">控制面对接成本</td><td>策略与规则能否经 Supervisor 注入、热加载、回滚并回报生效状态</td></tr>
+  <tr><td><b>5%</b></td><td class="k">插件进程化支持</td><td>权重下调：Supervisor 可将单体引擎整体作为独立进程纳管，内部插件机制不再是硬性要求</td></tr>
+  <tr><td><b>15%</b></td><td class="k">跨平台覆盖</td><td>Windows / macOS / Linux 的采集质量、系统版本约束与生产成熟度</td></tr>
+  <tr><td><b class="rec">35%</b></td><td class="k">行为遥测与检测（AI 场景）</td><td>权重上调：三端行为事件、规则检测、内存扫描与 AI 客户端威胁识别；通用资产与周期查询不计分</td></tr>
+  <tr><td><b>10%</b></td><td class="k">许可证商用合规</td><td>闭源商业分发红线（一票否决项）</td></tr>
+  <tr><td><b>5%</b></td><td class="k">社区活跃度</td><td>迭代节奏、维护集中度与长期自维护成本</td></tr>
+</table>
+
+<div class="note"><b>评估立场声明：</b>开源框架只竞争「终端侧采集引擎 + 检测引擎 + 扩展骨架」三个角色，框架自带的 Server、SIEM、规则引擎能力<b>不计分</b>（自研平台将替代它们）——避免「功能多=适合」的选型错觉，这正是平台型项目（Wazuh/Velociraptor）在本场景失分的根本原因。</div>
+
+<h3 class="sub" id="s1-3">1.3 许可证商用合规前置门禁（先准入，后技术评分）</h3>
+<div class="secdesc">任何架构借鉴或技术评分之前，先确认闭源商业分发路径。AGPL/GPL 项目并非完全不能阅读，而是不得让代码、构建依赖、IDL 或衍生实现进入自研商业主链路。</div>
+<table>
+  <tr><th style="width:140px">组件</th><th style="width:180px">许可证 / 合同</th><th style="width:140px">前置判定</th><th>本项目允许的使用方式</th></tr>
+  <tr><td class="k">Rustinel</td><td class="rec">Apache-2.0</td><td class="rec">通过</td><td>独立进程引入、规则配置及必要的 fork 增强；保留 LICENSE / NOTICE、版权与修改声明</td></tr>
+  <tr><td class="k">osquery</td><td class="rec">Apache-2.0 路径</td><td class="mid">许可通过 / Agent 排除</td><td>许可不是阻断项，但端点状态 SQL 工具不符合实时 EDR Agent 定位；仅允许 Thrift/Registry/Watchdog 等局部代码级参考，不进入运行时</td></tr>
+  <tr><td class="k">Fleet orbit</td><td class="rec">MIT</td><td class="rec">通过</td><td>更新、签名验证和宿主管理可代码级参考，保留许可声明</td></tr>
+  <tr><td class="k">Elkeid</td><td class="bad">AGPL-3.0</td><td class="mid">限制参考</td><td><b>仅设计级蓝本</b>：可参考 Agent 插件生命周期、心跳、进程表、版本与灰度思想；Supervisor 全部独立实现，零源码、零依赖、零 IDL 复制</td></tr>
+  <tr><td class="k">Velociraptor</td><td class="bad">AGPLv3</td><td class="mid">商业链路禁入</td><td>仅作 SOC 侧独立取证工具；不共代码、不共通道、不共安装包</td></tr>
+  <tr><td class="k">Wazuh</td><td class="bad">混合：GPLv2（4.x Agent/Server）+ ALv2（Indexer/Dashboard）；5.0 新 engine 为 AGPLv3</td><td class="bad">终端主链路排除</td><td>不得为对接数据面修改 Agent（GPLv2 修改即须开源）；<b>5.0 起新分析 engine 转为 AGPLv3</b>，网络提供服务亦触发，风险进一步上升；规则与 ATT&CK 语料复用前另查内容许可</td></tr>
+  <tr><td class="k">OpenEDR</td><td class="bad">CASL</td><td class="bad">排除</td><td>收费分发限制叠加维护停滞，不引入</td></tr>
+  <tr><td class="k">Falco（补充）</td><td class="rec">Apache-2.0</td><td class="rec">许可通过 / 范围不符</td><td>未来云工作负载场景独立评估，本期不进入办公终端主链路</td></tr>
+  <tr><td class="k">Sysmon / AIDR / AV SDK</td><td class="mid">EULA / 商业合同</td><td class="mid">条件通过</td><td>Sysmon 仅可选补盲；AIDR 与 AV 必须在采购/OEM 合同中明确分发权、驱动签名、升级与责任边界</td></tr>
+</table>
+<div class="note risk"><b>前置红线：</b>Elkeid 作为 Supervisor 蓝本不意味着引入 Elkeid 代码。禁止复制源码、Protobuf 定义、构建脚本或将其作为依赖；只沉淀自研状态机、消息契约和版本清单，并通过代码扫描与评审证明独立实现。详细传染边界见第 09 章。</div>
+
+<h3 class="sub" id="s1-4">1.4 终端 EDR Agent 适配门禁（许可之后、评分之前）</h3>
+<div class="secdesc">许可证解决“能不能用”，本门禁解决“是不是本项目需要的 Agent”。端点状态查询、日志转发、取证工具或完整平台不自动等于实时终端检测 Agent。<b>技术评分照常保留，门禁只决定最终方案准入。</b></div>
+<table>
+  <tr><th style="width:150px">候选</th><th style="width:170px">Agent 适配判定</th><th>门禁依据与最终处理</th></tr>
+  <tr><td class="k">Rustinel</td><td class="rec">通过（分平台准入）</td><td>持续行为遥测 + 端点本地 Sigma/YARA/IOC + ECS 告警文件，能够作为 Supervisor 的实时检测插件；Windows 主选、Linux 分阶段、macOS 实验</td></tr>
+  <tr><td class="k">osquery</td><td class="bad">最终方案排除</td><td><b>本质是端点状态 SQL 查询引擎</b>：擅长资产、配置、合规和周期/分布式查询，pull-based；不具备本地实时 Sigma/YARA 检测、告警闭环与响应执行，不适合作为本项目终端 EDR Agent。<b>保留 3.85 分技术评分与排序</b>，用于客观反映接口和工程机制优势；但评分不豁免门禁，最终方案不采用，仅保留 Thrift/Registry/Watchdog 局部技术参考</td></tr>
+  <tr><td class="k">Elkeid</td><td class="mid">技术同构 / 许可阻断</td><td>Agent—子进程插件机制适合作为 Supervisor 设计蓝本，但 AGPL、社区版 Linux-only 与 gRPC 服务端耦合决定其不作为本项目运行时 Agent</td></tr>
+  <tr><td class="k">Wazuh</td><td class="bad">排除</td><td><b>四组件（Agent/Server/Indexer/Dashboard）构成完整 SOC，检测结论在 Server 侧产生</b>，Agent 强依赖 Manager 私有协议；核心价值在完整平台、与自研平台重叠，终端数据面和许可均不通过</td></tr>
+  <tr><td class="k">Velociraptor</td><td class="bad">排除（独立取证）</td><td>VQL/Hunt/Artifact 面向 DFIR 与威胁狩猎，不是实时本地检测传感器；保留为独立应急工具</td></tr>
+  <tr><td class="k">OpenEDR</td><td class="bad">排除</td><td>Windows-only、维护停滞、CASL 与驱动维护风险，未进入技术评分主选</td></tr>
+  <tr><td class="k">Falco（补充）</td><td class="mid">范围不匹配</td><td>适合 Linux/容器/Kubernetes 运行时，不作为跨平台办公终端 Agent；未来云工作负载独立评估</td></tr>
+</table>
+<div class="note"><b>门禁结论：</b>六框架中，<b>Rustinel 是唯一直接进入默认终端插件池的开源运行时</b>；Elkeid 只进入 Supervisor 设计文档，Velociraptor 只进入 SOC 工具箱，osquery 保留技术评分与排序、但只进入局部技术参考清单。<b>加权评分用于客观比较技术对接特征，最终入选必须同时满足许可证与 Agent 适配门禁，高分不得推翻前置门禁。</b></div>
+
+<!-- ================= 02 上报架构基线 ================= -->
+<h2 class="sec" id="sec02"><span class="no">02</span>上报架构基线：双平面设计（已定型）</h2>
+<div class="secdesc">日志上报不走 WebSocket 单通道。<b>终端 Agent Center</b>内部采用控制面/数据面分离：WS 连接网关负责实时控制，无状态接入层负责 HTTP/2 + mTLS 数据接入；安全管理中心通过 Kafka 消费数据并执行分析、策略与响应闭环。</div>
+
+<h3 class="sub" id="s2-1">2.1 双平面定型</h3>
+<table>
+  <tr><th style="width:170px">平面</th><th style="width:330px">终端 Agent Center 组件与协议</th><th>设计理由</th></tr>
+  <tr><td class="k">🔴 控制面</td><td><b>WS 连接网关</b>（WebSocket over TLS，443）：注册 / 心跳 / 策略下发 / 实时指令 / 插件管理</td><td>低频小消息、需要双向实时触达；Agent Center 维护连接路由、跨节点推送和终端在线状态；告警类小消息也可走此通道保实时</td></tr>
+  <tr><td class="k">🟢 数据面</td><td><b>无状态接入层</b>（HTTP/2 POST + mTLS，443）：终端本地 WAL、断点续传、zstd、1~4MB 批量与幂等序号；接入层完成验签、解压、去重和 topic 路由 → Kafka（遥测/告警/AI 资产/AI 链路行为）</td><td>避免单通道队头阻塞；数据面无状态线性扩容、控制面按连接数扩容；安全管理中心从 Kafka 消费，与终端连接层解耦</td></tr>
+</table>
+<div class="note grn"><b>平台两中心边界：</b><b>终端 Agent Center</b>是终端连接与数据入口，包含 WS 连接网关、无状态接入层及终端注册/在线状态/连接路由，不承载重型安全分析；<b>安全管理中心</b>是业务与运营中枢，负责 AI 资产、策略、ATT&CK 分析可视化、AI 智能体链路行为画像和自动化响应。两中心通过 Kafka 数据流与控制指令 API 协作，避免海量终端连接状态与分析服务相互耦合。</div>
+
+<h3 class="sub" id="s2-2">2.2 数据面关键设计点</h3>
+<ul class="cl">
+  <li><b>本地磁盘 WAL 先行</b>：断网期间数据持续落盘，重连后按幂等序号（batch seq）续传去重——断网不丢语义由主程序统一保障</li>
+  <li><b>zstd 压缩 + 1~4MB 批量</b>：遥测压缩比通常 10:1；批量大小平衡时延与请求开销</li>
+  <li><b>分级传输</b>：已落盘告警（传输不丢、秒级，可走 ws）/ 行为遥测流（可延迟、可降级采样）/ AI 资产快照（低频全量+增量）——服务端按 topic 分流</li>
+  <li><b>容量测算（仅全量遥测增强模式，10 万终端示例）</b>：若 fork 开启日均 50MB/端原始遥测，压缩后约 6MB/s 均值、峰值 ×10；默认 Rustinel 告警模式远低于此量级。行业参考：osquery <code>logger_tls</code> 与 Elastic Agent→Fleet 批量模式</li>
+</ul>
+
+<div class="note grn"><b>基线对评估逻辑的反转：</b>WAL/zstd/mTLS/重传全部收口在自研主程序——框架只需「把数据交出来」（本地文件或标准批量端点），不需要自带可靠传输。<b>自带 gRPC/私有协议的框架（Elkeid/Wazuh/Velociraptor）数据面反而成了负资产；纯本地输出的框架（Rustinel/osquery filesystem logger）与收口型模式天然契合。</b></div>
+
+<!-- ================= 03 候选总览 ================= -->
+<h2 class="sec" id="sec03"><span class="no">03</span>候选框架总览</h2>
+<div class="secdesc">六个候选按「采集引擎 / 检测引擎 / 平台型项目」分类，配套组件（Sysmon/Fibratus/orbit）单独标注。</div>
+<table>
+  <tr><th style="width:130px">候选</th><th style="width:170px">梯队定位</th><th style="width:190px">开发方 / 背书</th><th style="width:150px">Agent 语言</th><th>双平面基线下的一句话结论</th></tr>
+  <tr><td class="k">Rustinel</td><td>高吞吐本地行为采集与检测引擎</td><td>Karib0u（个人开源，迭代极快）</td><td>Rust</td><td class="rec">Windows 稳定且覆盖最全；Linux 稳定但仅进程/网络/文件/DNS；macOS 实验。默认 ECS 告警落盘，可选 webhook；P0 主引擎</td></tr>
+  <tr><td class="k">osquery</td><td>端点状态 SQL 查询工具</td><td>Linux Foundation 托管社区 / Fleet、Kolide 商业生态</td><td>C++（扩展可 C++/Go/Python）</td><td class="bad">资产、配置、合规与周期查询工具，pull-based，无本地实时检测/响应闭环 → 保留技术评分，最终方案排除，仅保留扩展契约参考</td></tr>
+  <tr><td class="k">Elkeid</td><td>云原生 CWPP（HIDS+RASP）</td><td>字节跳动</td><td>Go（插件多语言）</td><td class="bad">gRPC 直发且无本地输出模式 + AGPL → Supervisor 生命周期/IPC/版本管理主要设计蓝本，代码零引入</td></tr>
+  <tr><td class="k">Wazuh</td><td>开源 XDR/SIEM 平台</td><td>Wazuh Inc（OSSEC 分支）</td><td>C</td><td class="bad">四组件完整 SOC（Agent/Server/Indexer/Dashboard）· 私有 TCP 1514 + GPLv2（5.0 engine 转 AGPLv3）· 数据面唯一 1/5，价值全在被自研平台替代的 Manager 侧 → 排除定案</td></tr>
+  <tr><td class="k">Velociraptor</td><td>DFIR / 威胁猎捕平台</td><td>Rapid7 / Velocidex</td><td>Go</td><td class="bad">gRPC+mTLS 安全模型与传输一体不可换装 + AGPL → 独立取证工具，与商业链路隔离</td></tr>
+  <tr><td class="k">OpenEDR</td><td>开源 EDR 组件</td><td>Comodo / Xcitium</td><td>C++</td><td class="bad">2022 后停滞 + CASL 许可限制收费 + 输出格式私有 → 排除</td></tr>
+  <tr><td class="k">Sysmon（组件）</td><td>Windows 可选遥测源</td><td>微软 Sysinternals</td><td>—</td><td class="mid">默认不启用；仅当 Rustinel ETW 字段存在缺口时按需引入，由自研 Windows 事件适配器消费事件日志，不再依赖 osquery</td></tr>
+  <tr><td class="k">Falco（补充候选）</td><td>Linux / 容器运行时检测</td><td>CNCF 生态</td><td>C++ / eBPF 等</td><td class="mid">官网对比补充：擅长 Linux、容器与 Kubernetes 运行时检测，但不是跨平台办公终端引擎；如后续纳入云工作负载可独立评估，本期不进入主评分</td></tr>
+  <tr><td class="k">Fibratus（组件）</td><td>Windows ETW 内核流引擎</td><td>开源社区</td><td>Go + Python</td><td class="mid">Apache-2.0，Windows 深度备选组件；默认不引入，仅作遥测增强备选（单维护者风险）</td></tr>
+  <tr><td class="k">Fleet orbit（参考）</td><td>osquery 宿主管理器</td><td>FleetDM（MIT）</td><td>Go</td><td class="rec">「Go 宿主管理 osqueryd + 扩展 + TUF 更新」的工程先例——自研 Supervisor 可代码级参考</td></tr>
+</table>
+
+<h3 class="sub" id="s3-1">3.1 Rustinel 官网横向对比对本项目的校准</h3>
+<table>
+  <tr><th style="width:130px">工具</th><th style="width:290px">官网定位</th><th>对本项目选型的启示</th></tr>
+  <tr><td class="k">Rustinel</td><td>跨平台遥测 + 端点本地规则评估；ECS NDJSON 告警</td><td class="rec">检测发生在终端，适合低时延本地闭环；无托管控制台和全网响应自动化，恰由自研 Supervisor 与平台补齐</td></tr>
+  <tr><td class="k">osquery</td><td>端点状态、资产与周期合规查询；pull-based</td><td class="bad">不是实时行为检测 Agent；保留 3.85 分技术评分与排序，但项目不需要资产与周期查询，最终方案不采用</td></tr>
+  <tr><td class="k">Falco</td><td>Linux、容器、Kubernetes 与云原生运行时检测</td><td class="mid">不是跨平台办公终端替代品；未来扩展云工作负载时作为独立候选</td></tr>
+  <tr><td class="k">Sysmon</td><td>高质量 Windows 事件流，检测通常在 SIEM</td><td class="mid">可补遥测但不能替代 Rustinel 本地检测；引入需接受内核驱动和 Windows-only 边界</td></tr>
+  <tr><td class="k">Wazuh</td><td>Agent + Manager + Dashboard + 合规完整平台</td><td class="bad">要求自有技术栈且运营复杂，与完全自研平台重叠，不进入终端主链路</td></tr>
+  <tr><td class="k">Velociraptor</td><td>DFIR、Hunt 与终端工件采集</td><td class="mid">取证强但不是实时检测传感器，维持独立应急工具定位</td></tr>
+  <tr><td class="k">OpenEDR</td><td>传统 Windows EDR 形态，内核驱动</td><td class="bad">仅 Windows、社区活跃有限，叠加许可与维护风险后排除</td></tr>
+</table>
+
+<!-- ================= 04 核心对比矩阵 ================= -->
+<h2 class="sec" id="sec04"><span class="no">04</span>核心对比矩阵</h2>
+<div class="secdesc">按双平面基线的三对接面 + 能力面逐项对比。●=强/满足，◐=部分满足，○=弱/不满足。</div>
+<table>
+  <tr>
+    <th style="width:150px">维度</th>
+    <th style="width:130px">osquery</th><th style="width:130px">Rustinel</th><th style="width:130px">Elkeid</th><th style="width:130px">Wazuh</th><th style="width:130px">Velociraptor</th><th style="width:130px">OpenEDR</th>
+  </tr>
+  <tr><td class="k">数据面交付模式</td><td class="rec">● logger_tls 批量 POST / filesystem 本地 JSONL</td><td class="rec">● ECS NDJSON 告警文件（原始流需扩展）</td><td class="bad">○ gRPC 直发，无本地输出</td><td class="bad">○ 私有 TCP/AES（1514）</td><td class="bad">○ gRPC+mTLS 深耦合</td><td class="mid">◐ 本地文件（私有格式）</td></tr>
+  <tr><td class="k">WAL / 断网不丢适配</td><td class="mid">◐ 主程序 WAL 收口（filesystem 天然落盘）</td><td class="rec">● 本地文件缓冲 + Supervisor WAL</td><td class="bad">○ 内存有限缓冲</td><td class="bad">○ counter 上限缓冲，非持久化</td><td class="bad">○ 常驻通道无落盘语义</td><td class="mid">◐ 本地文件缓冲</td></tr>
+  <tr><td class="k">控制面 / 策略注入</td><td class="rec">● config_tls 周期刷新 + distributed 指令端点</td><td class="mid">◐ 规则目录热加载（ws→写目录）</td><td class="mid">◐ 指令体系完善但绑定 gRPC</td><td class="bad">○ 锁死 Manager 私有协议</td><td class="bad">○ 绑定其 Server</td><td class="bad">○ 无</td></tr>
+  <tr><td class="k">插件=独立进程 + IPC</td><td class="rec">● 扩展进程 + Thrift（Socket/管道）+ Watchdog</td><td class="bad">○ 单体引擎</td><td class="rec">● 子进程插件 + Unix Socket</td><td class="bad">○ 模块编译内联</td><td class="bad">○ VQL 脚本非进程</td><td class="bad">○ 固定组件</td></tr>
+  <tr><td class="k">Windows</td><td class="rec">● 一等公民</td><td class="rec">●（ETW 用户态）</td><td class="bad">○ 仅企业版</td><td class="mid">◐</td><td class="rec">●</td><td class="rec">●（仅）</td></tr>
+  <tr><td class="k">macOS / Linux</td><td class="rec">● / ●</td><td class="mid">实验 / ●（eBPF≥5.8，覆盖较 Windows 窄）</td><td class="bad">○ / ●（内核驱动）</td><td class="mid">◐ / ●</td><td class="rec">● / ●</td><td class="bad">○ / ○</td></tr>
+  <tr><td class="k">Kafka topic 适配（数据格式）</td><td class="rec">● results/status 分流语义现成</td><td class="rec">● ECS 9.4.0 标准字段</td><td class="mid">◐ Protobuf 私有 schema</td><td class="bad">○ JSON 私有事件格式</td><td class="mid">◐ 可导出 ES/Splunk</td><td class="bad">○ 私有格式</td></tr>
+  <tr><td class="k">遥测 / 检测深度（AI 场景）</td><td class="mid">◐ 行为遥测可用但无检测层，且与 Rustinel 重复</td><td class="rec">● 三端采集 + Sigma + YARA（文件/可选内存扫描）+ IOC</td><td class="rec">● 内核级采集 + RASP</td><td class="mid">◐ 规则生态丰富</td><td class="rec">● 全取证面</td><td class="mid">◐ 驱动级采集</td></tr>
+  <tr><td class="k">社区活跃度（2026-11）</td><td class="rec">● 5.24.0</td><td class="mid">◐ v1.11.0，单维护者</td><td class="mid">◐ 1.9.x 节奏放缓</td><td class="rec">● 4.14.x / 5.0 RC2</td><td class="rec">● 0.77.3</td><td class="bad">○ 2022 后停滞</td></tr>
+  <tr><td class="k">许可证（闭源商用）</td><td class="rec">● Apache-2.0 可选</td><td class="rec">● Apache-2.0</td><td class="bad">○ AGPL-3.0</td><td class="bad">○ GPLv2 / 5.0 AGPL</td><td class="bad">○ AGPLv3</td><td class="bad">○ CASL</td></tr>
+  <tr><td class="k">二次开发友好度</td><td class="rec">● 扩展 SDK + Thrift IDL + 文档完备</td><td class="mid">◐ Rust 门槛 / 文档完善中</td><td class="mid">◐ 代码清晰但引入即受限</td><td class="mid">◐ C 单体改造受限</td><td class="mid">◐ VQL 免改码 / 核心受限</td><td class="bad">○ 文档缺失</td></tr>
+  <tr><td class="k">加权总分（新权重）</td><td><b>3.85</b></td><td><b class="rec">4.05</b></td><td><b>3.35</b></td><td><b class="bad">2.55</b></td><td><b>3.65</b></td><td><b class="bad">1.95</b></td></tr>
+  <tr><td class="k">终局定位</td><td class="bad">排除（非实时 EDR Agent）</td><td class="rec">P0 行为采集与检测</td><td class="mid">Supervisor 设计蓝本</td><td class="bad">排除（规则语料）</td><td class="bad">独立取证工具</td><td class="bad">排除</td></tr>
+</table>
+
+<h3 class="sub" id="s4-1">4.1 候选框架日志收集方式横向对比</h3>
+<div class="secdesc">六个切面：采集模型、端上归一化、本地落盘形态、上报通道、断网缓冲、丢弃语义。这张表直接支撑落地方案的两个设计：Supervisor 文件采集器（三种读取模式）与「传输收口在主程序、插件不自带可靠传输」的基线。</div>
+<table>
+  <tr><th style="width:110px">框架</th><th style="width:170px">采集模型</th><th style="width:160px">端上归一化</th><th style="width:190px">本地落盘形态</th><th style="width:180px">上报通道</th><th style="width:150px">断网缓冲</th><th>丢弃语义</th></tr>
+  <tr>
+    <td class="k">osquery</td>
+    <td class="mid">pull：周期 SQL 查询（schedule）+ 差分日志；事件表（Windows Event Log 订阅等）为辅</td>
+    <td>查询结果集 JSON 行（列名即字段，schema 随查询变化）</td>
+    <td class="rec">filesystem logger：results.log 本地追加文件</td>
+    <td class="mid">文件由外部搬运（Filebeat 等）或 logger_tls（HTTPS 批量）</td>
+    <td class="mid">TLS 模式内存缓冲 + 退避重试；文件模式天然持久</td>
+    <td>缓冲超限丢弃并计数；无检测，无检测前丢弃概念</td>
+  </tr>
+  <tr>
+    <td class="k">Rustinel</td>
+    <td class="rec">push：实时传感器流（ETW 双会话 + Event Log / eBPF / ES+BPF），事件驱动</td>
+    <td class="rec">Sysmon 风格字段 → ECS NDJSON，三端统一</td>
+    <td class="rec">四类本地文件：alerts.json.&lt;date&gt;（追加）、rustinel.log.&lt;date&gt;、telemetry.json（30s 整写快照）、heartbeat.json.&lt;date&gt;（追加）；另有 capture 回放录制</td>
+    <td class="rec">默认本地文件由外部收口（本设计）；可选 webhook（HMAC 签名 + 退避重试 + Retry-After）</td>
+    <td class="rec">文件即持久缓冲；64MB 告警字节预算，超限丢文件副本保 webhook</td>
+    <td class="rec">六条有界通道满载丢弃并<b>逐通道计数</b>（telemetry.json 30s + 限频 loss 告警）</td>
+  </tr>
+  <tr>
+    <td class="k">Elkeid</td>
+    <td class="rec">push：内核驱动 + Collector + Journal Watcher + Scanner/RASP/Baseline 六插件实时采集</td>
+    <td>Protobuf 结构化（插件各自 schema，服务端 HUB 规则消费）</td>
+    <td class="bad"><b>无本地文件输出模式</b>，采集即上云</td>
+    <td class="bad">gRPC + Protobuf 私有长连接直发 AgentCenter → Kafka</td>
+    <td class="bad">端上无持久缓冲，断网期间采集能力受限</td>
+    <td>服务端侧限流与丢弃，端上不可观测</td>
+  </tr>
+  <tr>
+    <td class="k">Wazuh</td>
+    <td class="mid">push：logcollector（文件/syslog/Event Log 通道）+ syscheck FIM（实时+周期）+ rootcheck/SCA 周期扫描 + 库存模块</td>
+    <td class="mid">端上仅做初步解析，解码与富化在 Manager（decoders）</td>
+    <td class="bad">端上<b>无标准格式本地输出</b>（alerts 在 Manager 侧生成）</td>
+    <td class="bad">AES 加密私有 TCP 1514 直发 Manager</td>
+    <td class="bad">agent 内存 counter 队列，非持久 WAL</td>
+    <td class="bad">队列满丢弃，端上计数能力弱，平台不可见</td>
+  </tr>
+  <tr>
+    <td class="k">Velociraptor</td>
+    <td class="mid">按需为主：VQL 查询 + Artifact 事件监控（Client Monitoring）+ Hunt 并发；取证型</td>
+    <td>结果集按 Artifact 定义（行结构随工件变化）</td>
+    <td class="mid">常驻模式不落盘；<b>Offline Collector 显式落盘</b>（一次性取证包）</td>
+    <td class="bad">gRPC + mTLS 双向认证直发 Server（传输与安全模型一体，不可换装）</td>
+    <td class="mid">内存缓冲为主，断网补传能力有限；离线场景走取证包</td>
+    <td>无逐通道丢弃计数语义</td>
+  </tr>
+  <tr>
+    <td class="k">OpenEDR</td>
+    <td class="rec">push：Windows 内核驱动事件 → CASL 本地规则评估</td>
+    <td class="bad">私有事件格式（无 ECS/Sysmon 风格归一化）</td>
+    <td class="mid">本地事件文件 → Filebeat / Elastic Agent 转发</td>
+    <td class="mid">Filebeat → Elasticsearch（绑 ES 生态）</td>
+    <td class="mid">Filebeat 自带注册表续传</td>
+    <td class="bad">项目停滞，丢弃与缓冲语义无文档无演进</td>
+  </tr>
+</table>
+<div class="note grn"><b>对本项目的结论：</b>收口型基线（插件交文件、传输收口在 Supervisor）只有两种日志收集方式能<b>零改造</b>接入——<b>Rustinel 的「本地追加文件 + 逐通道可计数丢弃」</b>与 <b>osquery 的 filesystem logger</b>（但后者无检测层，仅参考其文件滚动与差分语义）。私有协议直发（Elkeid/Wazuh）必须重写传输层并触发许可义务；Velociraptor 是按需取证不是常驻数据流；OpenEDR 文件模式格式私有且无演进。落地方案 4.1 节的「文件采集器三种读取模式」（tail / 快照 / 重定向）正是为吸收上表第二行语义而设计。</div>
+<div class="note grn"><b>v4.0 引用更新：</b>本节对比已沿两条线落地为正式交付物——①《Supervisor 插件日志采集专项设计 v1.0》：三类读取器定型为 TailReader / SnapshotReader / LogSampler，offset 状态以 File ID / inode 为 file_key，三级队列 P0 spill 不丢 / P1 降采样 / P2 丢弃；②《统一客户端第三方插件 SDK 集成设计方案 v1.2》：第三方 SDK（方寸 AIDR、安天 AV）一律以独立适配进程接入（宿主不加载 SDK），通过 plugin_config.jsonc 声明 DataSources 将 SDK 产出直接纳入本表第二行「本地追加文件」语义的采集管道，采集模型六切面对比由此成为整个终端数据面的统一依据。</div>
+
+<!-- ================= 05 六框架逐一评估 ================= -->
+<h2 class="sec" id="sec05"><span class="no">05</span>六框架逐一评估（含整体架构图）</h2>
+<div class="secdesc">每节含对接面评估表、结论判定与整体架构 SVG（红/绿标注与自研架构的对接判定）。</div>
+
+<h3 class="sub" id="s5-1">5.1 osquery <span class="tag t-red">3.85 分：评分保留，最终方案排除</span></h3>
+<table>
+  <tr><th style="width:180px">对接面</th><th>评估详情</th></tr>
+  <tr><td class="k">数据面（20%）</td><td class="rec">5/5 · 原生 TLS 端点与定型基线 1:1 对应：<code>logger_tls</code> 批量 POST（<code>logger_tls_period</code> 周期上报、<code>logger_tls_compress</code> 压缩、失败重试）；或走 <code>logger_plugin=filesystem</code> 本地 JSONL 由主程序统一收口——<b>六框架中唯一原生说「HTTP 批量上报」</b></td></tr>
+  <tr><td class="k">控制面（10%）</td><td>4/5 · <code>config_tls</code> 周期刷新=策略下发载体，<code>distributed</code> 端点=实时查询指令通道；ws 注册/心跳/插件管理由 Supervisor 承担，osquery 侧无需任何改造</td></tr>
+  <tr><td class="k">插件进程化（5%）</td><td class="rec">5/5 · 扩展=独立进程 + Thrift IPC（Unix Socket / 命名管道）+ Watchdog 守护 + 失联自动注销/恢复重注册</td></tr>
+  <tr><td class="k">WAL 与断网</td><td>osquery 自身无磁盘 WAL（TLS 重试有次数上限）→ 由主程序 WAL 统一保障，与收口型设计一致</td></tr>
+  <tr><td class="k">Kafka topic 映射</td><td>results / status 两类日志天然分流，技术对接容易；但资产类查询结果不属于当前必要范围，不构成默认引入理由</td></tr>
+</table>
+<div class="verdict"><b>结论：</b>osquery 的 logger/config/Thrift 接口工程上可对接，因此<b>保留 3.85 分技术评分并参与评分排序</b>，客观反映其数据面、控制面、跨平台和插件机制优势；但这不能改变其产品本质：<b>端点状态 SQL 查询引擎，而非实时 EDR 检测 Agent</b>。它缺少端点本地 Sigma/YARA/IOC 实时检测、告警闭环与响应执行，项目又不需要其核心查询能力。因此<b>最终方案不采用，不进入运行时、安装包或可选 Agent 清单</b>。3.85 分不构成入选依据，仅将 Thrift 握手、Registry、Watchdog 等局部机制作为 Supervisor 的 Apache-2.0 代码级参考。</div>
+
+<div class="arch">
+<svg viewBox="0 0 1140 400" xmlns="http://www.w3.org/2000/svg" font-family="Microsoft YaHei,PingFang SC,sans-serif">
+  <rect x="20" y="16" width="1100" height="360" rx="10" fill="#16224a" stroke="#2e4573"/>
+  <text x="40" y="44" fill="#ffb03a" font-size="15" font-weight="bold">🟡 osquery 整体架构（端点状态 SQL 工具 · 3.85 分保留，最终方案排除）</text>
+  <rect x="40" y="60" width="620" height="290" rx="8" fill="#0f1d3d" stroke="#31d0ff" stroke-width="1.5"/>
+  <text x="350" y="86" fill="#eaf3ff" font-size="14" text-anchor="middle" font-weight="bold">osqueryd 主进程</text>
+  <rect x="60" y="100" width="270" height="46" rx="5" fill="#121c33" stroke="#2e4573"/>
+  <text x="195" y="128" fill="#dbe6f5" font-size="12" text-anchor="middle">SQL 虚拟表引擎（200+ 系统表）</text>
+  <rect x="60" y="158" width="270" height="100" rx="5" fill="#121c33" stroke="#2e4573"/>
+  <text x="195" y="182" fill="#dbe6f5" font-size="12" text-anchor="middle" font-weight="bold">Registry 类型化插件位</text>
+  <text x="195" y="202" fill="#93a7c8" font-size="10.5" text-anchor="middle">table（自定义表） / config（策略获取）</text>
+  <text x="195" y="220" fill="#93a7c8" font-size="10.5" text-anchor="middle">logger（日志输出） / distributed（实时查询）</text>
+  <text x="195" y="243" fill="#5f7396" font-size="10.5" text-anchor="middle">能力声明标准化——按类型位注册路由</text>
+  <rect x="60" y="272" width="270" height="60" rx="5" fill="#121c33" stroke="#2e4573"/>
+  <text x="195" y="296" fill="#dbe6f5" font-size="12" text-anchor="middle">扩展管理器（Thrift 服务线程）</text>
+  <text x="195" y="316" fill="#93a7c8" font-size="10.5" text-anchor="middle">失联自动注销 / 恢复自动重注册</text>
+  <rect x="350" y="100" width="290" height="46" rx="5" fill="#121c33" stroke="#2e4573"/>
+  <text x="495" y="128" fill="#dbe6f5" font-size="12" text-anchor="middle">Watchdog 看门狗（性能/存活监控）</text>
+  <rect x="350" y="158" width="290" height="60" rx="5" fill="#121c33" stroke="#2e4573"/>
+  <text x="495" y="182" fill="#dbe6f5" font-size="12" text-anchor="middle">调度查询 / 事件表持续采集</text>
+  <text x="495" y="202" fill="#93a7c8" font-size="10.5" text-anchor="middle">config_refresh / logger 周期参数化</text>
+  <rect x="350" y="272" width="290" height="60" rx="5" fill="#121c33" stroke="#2e4573"/>
+  <text x="495" y="296" fill="#dbe6f5" font-size="12" text-anchor="middle">logger 路由（可多路并联）</text>
+  <text x="495" y="316" fill="#93a7c8" font-size="10.5" text-anchor="middle">filesystem / tls（逗号分隔并存）</text>
+  <rect x="690" y="60" width="410" height="150" rx="8" fill="#101d42" stroke="#ffd257"/>
+  <text x="895" y="86" fill="#ffd257" font-size="13" text-anchor="middle" font-weight="bold">扩展 = 独立进程</text>
+  <text x="895" y="108" fill="#93a7c8" font-size="11" text-anchor="middle">自定义表 / 桥接 logger-config</text>
+  <text x="895" y="126" fill="#93a7c8" font-size="11" text-anchor="middle">C++ / Go / Python（Thrift 兼容语言）</text>
+  <text x="895" y="148" fill="#5f7396" font-size="10.5" text-anchor="middle">一次 registerExtension 注册多个插件</text>
+  <text x="895" y="168" fill="#5f7396" font-size="10.5" text-anchor="middle">扩展文件权限收敛（root / icacls）</text>
+  <text x="895" y="192" fill="#5f7396" font-size="10.5" text-anchor="middle">崩溃仅注销自身，核心与其他扩展不受影响</text>
+  <line x1="660" y1="135" x2="690" y2="135" stroke="#31d0ff" stroke-width="1.5"/>
+  <line x1="660" y1="210" x2="690" y2="210" stroke="#31d0ff" stroke-width="1.5" opacity=".5"/>
+  <text x="675" y="230" fill="#5f7396" font-size="10" text-anchor="middle">IPC</text>
+  <rect x="690" y="230" width="410" height="120" rx="8" fill="#0d2a4a" stroke="#3ee08f" stroke-width="1.5"/>
+  <text x="895" y="254" fill="#ffb03a" font-size="12.5" text-anchor="middle" font-weight="bold">最终对接判定</text>
+  <text x="895" y="274" fill="#dbe6f5" font-size="10.5" text-anchor="middle">技术评分：3.85，参与排序；最终方案：不采用</text>
+  <text x="895" y="292" fill="#dbe6f5" font-size="10.5" text-anchor="middle">原因：状态 SQL 查询，不是实时检测与响应引擎</text>
+  <text x="895" y="310" fill="#dbe6f5" font-size="10.5" text-anchor="middle">保留价值：Thrift / Registry / Watchdog 局部参考</text>
+  <text x="895" y="328" fill="#5f7396" font-size="10.5" text-anchor="middle">不进入运行时，不设置可选 Agent 定位</text>
+  <text x="570" y="378" fill="#5f7396" font-size="10.5" text-anchor="middle">Apache-2.0 · 三端一等公民 · 工程先例：Fleet orbit（MIT）宿主管理 osqueryd + 扩展 + TUF 更新</text>
+</svg>
+</div>
+
+<h3 class="sub" id="s5-2">5.2 Rustinel <span class="tag t-grn">P0 行为采集与本地检测主引擎</span></h3>
+<table>
+  <tr><th style="width:180px">对接面</th><th>官网 + 源码 v1.11.0 双重校准后的评估详情</th></tr>
+  <tr><td class="k">版本与许可</td><td class="rec">源码 <code>Cargo.toml</code> 声明 <code>version = "1.11.0"</code>、<code>license = "Apache-2.0"</code>、<code>rust-version = "1.98"</code>；release profile 使用 <code>panic = "abort"</code>——崩溃即进程退出、不做栈展开，<b>Supervisor 必须具备看门狗、快速重启与崩溃计数上报</b></td></tr>
+  <tr><td class="k">Windows 采集（P0）</td><td class="rec">ETW + Windows Event Log，用户态无自研驱动；覆盖进程、镜像加载、网络、文件、注册表、DNS、PowerShell、WMI、服务、计划任务与 Security 审计。支持 Windows 服务安装/启动/停止/卸载，官方标记 <b>Stable</b>（Windows 10/11、Server 2016+），是三端中覆盖最完整的平台</td></tr>
+  <tr><td class="k">Linux / macOS</td><td class="mid">Linux：eBPF（<code>aya 0.14</code>，内核 ≥5.8），当前覆盖进程、网络、文件、DNS，明显窄于 Windows，官方 <b>Stable</b>；macOS：Endpoint Security（<code>endpoint-sec 0.6</code>）覆盖进程/文件，<code>/dev/bpf</code> 补充网络与 DNS，官方 <b>Experimental</b>（macOS 11+），不与 Windows 同级承诺</td></tr>
+  <tr><td class="k">统一事件模型</td><td>事件归一化为 Sysmon 风格字段并映射 ECS；同一 Sigma 规则可复用字段名，但只有在对应平台实际采集 logsource 且引用字段有值时才可命中，<b>跨平台 schema 不等于跨平台检测覆盖等价</b></td></tr>
+  <tr><td class="k">检测能力</td><td>Sigma（<code>rsigma-parser / rsigma-eval 0.25</code>）与 IOC 在事件到达时同步评估；YARA（<code>yara-x 1.21</code>）与哈希在后台处理新可执行文件和写入文件，避免拖慢 Sigma 热路径；IOC 覆盖哈希、IP/CIDR、域名、路径正则（单文件上限 50MB）；进程内存扫描为独立有界通道，<b>默认关闭</b>（启用后队列 64、延迟 750ms、单进程上限 64MB、单区域上限 8MB、默认仅私有内存）</td></tr>
+  <tr><td class="k">高吞吐设计</td><td class="rec">异步 pipeline + 有界队列；ETW 会话关键字过滤、高流量网络路由过滤、可选连接聚合；Sigma 按 category/product/service 预筛选并在加载时转译预编译；进程上下文仅附加到告警而非每个事件；NT→DOS 路径、PE 元数据、父进程、SID、DNS 缓存等富化</td></tr>
+  <tr><td class="k">数据面（20%）</td><td class="rec">4/5 · 官方默认将<b>告警</b>追加到 <code>alerts.json.&lt;date&gt;</code>（ECS NDJSON、按 UTC 日期轮转），运行日志写 <code>rustinel.log.&lt;date&gt;</code>；可选 webhook 在本项目关闭，由 Supervisor tail 收口。<b>capture/replay 记录的是归一化后的 canonical events（命令行为、文件路径、目标地址、用户名），不是原始 ETW/eBPF/ESF 载荷，也不是告警输出</b>，属于规则回归测试工作流，不等于生产持续原始遥测输出；全量行为检索需 fork 扩展</td></tr>
+  <tr><td class="k">控制面（10%）</td><td>3/5 · Sigma/YARA/IOC 与响应配置支持本地热重载：<b>若规则文件存在但全部编译失败，则拒绝本次重载并保留旧引擎</b>，部分失败则加载可用规则，成功后通过 <code>ArcSwap</code> 原子切换；debounce 默认 2000ms（源码钳制下限 100ms），兜底轮询 60s。Supervisor 经 ws 接收策略后写本地目录并核验生效状态</td></tr>
+  <tr><td class="k">插件进程化（5%）</td><td>2/5 · 单体引擎无内部插件机制，但可被 Supervisor 整体作为独立进程纳管；README 明确边界 <b>no anti-tamper、no pre-execution blocking、no management console</b>，由自研平台补齐</td></tr>
+  <tr><td class="k">负载与丢失语义</td><td class="mid"><b>六条有界通道满载即丢弃而非阻塞</b>（<code>SensorEvents</code>、<code>ArtifactResolution</code>、<code>ArtifactWrittenFiles</code>、<code>YaraMemoryScan</code>、<code>ActiveResponse</code>、<code>CaptureWriter</code>），过载表现为检测缺口而非系统卡顿；丢弃计数按通道/事件类别统计，30s 落 <code>telemetry.json</code>（关机再落一次），另按同样周期写 <code>heartbeat.json.&lt;date&gt;</code> 供 SIEM 判活，并限频（60s）触发 loss 告警。Supervisor 只能保证已落盘告警续传，无法弥补传感器在检测前丢弃的事件，必须设置丢弃率告警与容量基线</td></tr>
+  <tr><td class="k">主动响应边界</td><td class="mid">本地阈值响应：<code>channel_capacity = 128</code>、<code>min_severity = "critical"</code>、<code>prevention_enabled = false</code>（默认即 dry-run）；保护 <code>pid ≤ 4</code> 与自身 pid，支持镜像/路径 allowlist。三端实现：Linux <code>pidfd_open</code> + <code>pidfd_send_signal(SIGKILL)</code>、Windows <code>OpenProcess</code> + <code>TerminateProcess</code>、<b>macOS <code>kill(pid, SIGKILL)</code>（源码注释明确存在 PID 复用竞态）——即 macOS 并非「仅检测」</b>。无平台化响应编排，隔离/文件处置/审计闭环由自研响应动作插件承担</td></tr>
+  <tr><td class="k">供应链与运维面</td><td><code>rules install / update</code> 走 SHA-256 校验 + <code>minisign</code> 验签；<code>rustinel update</code> 通过 <code>self-replace</code> 自替换升级；<code>rustinel doctor</code> / <code>sigma doctor</code> 提供运行时与规则可触发性自检；日志按 UTC 日期 <code>{filename}.{date}</code> 轮转，integration group 文件设置受限权限并拒绝符号链接</td></tr>
+</table>
+<div class="verdict"><b>结论：</b>Rustinel 的核心价值是「Windows 高覆盖 ETW 遥测 + 端点本地 Sigma/YARA/IOC + 可检查的规则工程 + 可度量的丢弃语义」，不是完整商业 EDR。源码 v1.11.0 校准后，其工程成熟度高于官网口径：六条有界通道的丢弃可计数、<code>telemetry.json</code>/<code>heartbeat.json</code> 可被外部消费、热加载在「规则全坏」时拒绝切换并保留旧引擎、<code>rules install/update</code> 带 SHA-256 + minisign 验签。推荐其作为 P0 主引擎，但默认按<b>本地检测 + 告警上报</b>落地；Linux 分阶段准入、macOS 实验验证。全量原始遥测上云、企业级防篡改、预执行阻断和托管响应均不在源码能力内。</div>
+<div class="note"><b>官方依据：</b><a href="https://docs.rustinel.io/how-it-works" target="_blank">How it works</a>（传感器、输出、热加载、负载丢弃）；<a href="https://rustinel.io/blog/open-source-edr-for-windows" target="_blank">Open-Source EDR for Windows</a>（Windows 覆盖与 ETW 局限）；<a href="https://rustinel.io/compare/open-source-edr-tools" target="_blank">Comparison table</a>（工具定位与边界）。<br><b>源码依据（本次校准）：</b>本地只读审计 <code>rustinel-1.11.0</code>，主要证据文件 <code>Cargo.toml</code>、<code>config.toml</code>、<code>README.md</code>、<code>src/telemetry/mod.rs</code>、<code>src/telemetry/snapshot.rs</code>、<code>src/alerts/mod.rs</code>、<code>src/alerts/webhook.rs</code>、<code>src/reload/worker.rs</code>、<code>src/artifact/mod.rs</code>、<code>src/response/process.rs</code>、<code>src/capture/writer.rs</code>、<code>src/sensor/windows/loss.rs</code>。官网未覆盖或口径滞后的部分以源码为准。</div>
+
+<h3 class="sub" id="s5-2-1">5.2.1 Windows ETW 已知盲区（PoC 必测）</h3>
+<table>
+  <tr><th style="width:230px">盲区 / 限制</th><th>对检测与平台建设的影响</th></tr>
+  <tr><td class="k">哈希延迟与镜像加载无哈希</td><td>ETW 不直接提供 Hashes/Imphash；可执行文件哈希事后计算并延迟匹配，针对的是计算时的文件状态；镜像加载事件无哈希，相关规则不可依赖</td></tr>
+  <tr><td class="k">注入类遥测缺口</td><td>无 CreateRemoteThread、ProcessAccess、Named Pipe、Driver Load 等等价事件；涉及注入的规则即使加载也可能永远不触发，AI 客户端注入检测不能仅依赖 Rustinel</td></tr>
+  <tr><td class="k">命令行事后回填</td><td>Kernel-Process 事件不携带 CommandLine，需要查询仍存活进程，存在短进程退出竞态；应实测缺失率而非按 100% 设计</td></tr>
+  <tr><td class="k">部分字段不可填充</td><td>CurrentDirectory、部分镜像加载/计划任务 User、Signed、TaskContent 等存在空值；Sigma 规则上线前用 sigma doctor 和字段覆盖报告剔除不可触发规则</td></tr>
+  <tr><td class="k">文件路径学习缺口</td><td>启动前已经打开句柄的文件写入可能无法解析路径；高频文件检测需评估启动基线学习与路径解析时延</td></tr>
+  <tr><td class="k">PowerShell / 审计配置依赖</td><td>相关 Provider 覆盖 Windows PowerShell 5.1，不覆盖 PowerShell 7；Module Logging、Security Audit Subcategory、对象 SACL 等主机配置缺失时，订阅成功也不代表有事件</td></tr>
+  <tr><td class="k">无企业级自保护</td><td>高权限攻击者可停止 ETW Trace 或终止 Agent；需 Supervisor 心跳、服务恢复、进程完整性校验和平台离线告警补偿，但不能宣称等同内核防篡改</td></tr>
+</table>
+
+<h3 class="sub" id="s5-2-2">5.2.2 源码级事实校准（v1.11.0 · 本地只读审计）</h3>
+<div class="secdesc">本节只记录源码可验证的事实，用于替换官网口径中滞后或过于笼统的表述；凡官网未写明者，一律以源码与 <code>config.toml</code> 默认值为准。</div>
+<table>
+  <tr><th style="width:200px">事实项</th><th>源码结论（含证据位置）</th></tr>
+  <tr><td class="k">版本 / 许可 / 构建</td><td><code>Cargo.toml</code>：<code>version = "1.11.0"</code>、<code>license = "Apache-2.0"</code>、<code>rust-version = "1.98"</code>、release <code>panic = "abort"</code>。→ 商用合规无变化；但「abort 即退出」要求 Supervisor 侧必须有看门狗与崩溃计数</td></tr>
+  <tr><td class="k">平台矩阵</td><td>Windows 10/11 + Server 2016 以上 = <b>Stable</b>（ETW + Event Log）；Linux 5.8+ = <b>Stable</b>（eBPF：进程 / 网络 / 文件 / DNS）；macOS 11+ = <b>Experimental</b>（Endpoint Security + <code>/dev/bpf</code>）</td></tr>
+  <tr><td class="k">关键依赖</td><td><code>rsigma-parser / rsigma-eval 0.25</code>（Sigma）、<code>yara-x 1.21</code>（macOS 走 <code>pulley</code> 解释器，因 ES 客户端不可放宽 hardened runtime）、<code>aya 0.14</code>（Linux eBPF）、<code>endpoint-sec 0.6</code>（macOS）、<code>ferrisetw 1.2</code> + <code>windows 0.62.2</code> + <code>windows-service 0.8.1</code>（Windows）、<code>minisign-verify</code>、<code>self-replace</code>、<code>notify 8.2</code></td></tr>
+  <tr><td class="k">有界通道与丢弃</td><td><code>src/telemetry/mod.rs</code>：<code>ChannelId</code> 共 6 条（<code>SensorEvents</code> / <code>ArtifactResolution</code> / <code>ArtifactWrittenFiles</code> / <code>YaraMemoryScan</code> / <code>ActiveResponse</code> / <code>CaptureWriter</code>），全部 <code>try_send</code>，<b>满载丢弃而不阻塞</b>；计数按通道而非按传感器归属（macOS 上 ESF 与 BPF 合并计一条通道）</td></tr>
+  <tr><td class="k">可观测输出</td><td><code>[telemetry]</code> 默认 <code>enabled = true</code>、<code>snapshot_interval_secs = 30</code>（关机再落一次）、<code>loss_alert_interval_secs = 60</code>；输出 <code>telemetry.json</code> 与 <code>heartbeat.json.&lt;date&gt;</code>（每快照一行 NDJSON，供 SIEM 对「静默主机」告警）。→ <b>可直接被 Supervisor 采集上报，无需自行造健康指标</b></td></tr>
+  <tr><td class="k">告警写入与字节预算</td><td><code>src/alerts/mod.rs</code>：<code>DEFAULT_ALERT_QUEUE_BYTES = 64 * 1024 * 1024</code>（64MB），队列按字节记账而非条数；超预算时<b>丢弃文件副本，但保留摄入与 webhook 投递</b>。→ 磁盘卡死不会把内存撑爆，但会造成 <code>alerts.json</code> 缺口，Supervisor 必须以时间连续性而非行数判断完整性</td></tr>
+  <tr><td class="k">告警去重</td><td><code>[dedup]</code> 默认 <code>enabled = true</code>、<code>window_secs = 60</code>、<code>max_entries = 10000</code>；<b>首次出现立即发出、无检测延迟惩罚</b>，rollup 行的 <code>event.count</code> 表示「被抑制的重复次数」。→ 平台侧统计真实事件量必须做 <code>sum(event.count 缺失记 1)</code>，否则严重低估</td></tr>
+  <tr><td class="k">webhook 投递语义</td><td><code>src/alerts/webhook.rs</code>：每目标独立有界队列 + 单投递任务，队列满即丢弃并计数；指数退避 + jitter 重试，可重试状态 <code>408 / 425 / 429 / 500–599</code> 且遵循 <code>Retry-After</code>（不超过上限）；请求头 <code>x-rustinel-delivery</code>（重试期稳定 ID）、<code>x-rustinel-timestamp</code>、<code>x-rustinel-signature = sha256=&lt;hex HMAC-SHA256(secret, "&lt;timestamp&gt;.&lt;body&gt;")&gt;</code>；关停宽限 5s。<b>文件始终是 source of truth</b></td></tr>
+  <tr><td class="k">ETW 双会话与实测</td><td><code>[windows]</code>：<code>etw_flush_interval_ms = 20</code>（主会话，低于 20 被钳制为 20，共享队列过半时暂停强制 flush）；<code>etw_process_flush_interval_ms = 5</code>（Kernel-Process 会话，<b>队列压力下仍保持 flush</b>）。实测 2000 次 <code>cmd /c echo</code>：5ms 捕获 <b>99.9%</b> 命令行，20ms 仅 <b>61.5%</b>，设为 0 仅 <b>16.6%</b> 并连带失去约 <b>83%</b> 短命命令行、以及依赖 <code>CommandLine</code> 的 Sigma <code>process_creation</code> 规则（约 78%）</td></tr>
+  <tr><td class="k">产物解析</td><td><code>src/artifact/mod.rs</code>：<code>ARTIFACT_QUEUE_CAPACITY = 256</code>；镜像与写入文件<b>分队列、分 I/O 槽</b>，避免文件 churn 挤掉镜像；单次身份校验句柄一次读取后扇出到 PE 元数据 / 哈希 / 签名 / YARA；签名校验超过 2s 计为 slow 并记录。PE 元数据与 imphash 仅 Windows</td></tr>
+  <tr><td class="k">热加载语义</td><td><code>src/reload/worker.rs</code>：debounce 默认 2000ms（源码 <code>.max(100)</code> 钳制下限）、兜底轮询 60s；<b>找到规则文件但全部编译失败 → 拒绝本次重载并保留旧引擎</b>；部分失败 → 加载可用规则；IOC 指标集为空 → 拒绝；成功通过 <code>ArcSwap</code> 原子切换，读侧无锁</td></tr>
+  <tr><td class="k">主动响应三端实现</td><td><code>src/response/process.rs</code>：Linux <code>pidfd_open</code> + <code>pidfd_send_signal(SIGKILL)</code>（防 PID 复用）；Windows <code>OpenProcess</code> + <code>TerminateProcess</code>；<b>macOS <code>kill(pid, SIGKILL)</code>，源码注释明确存在 PID 复用竞态</b>。保护 <code>pid ≤ 4</code> 与自身 pid，支持镜像 basename / 全路径 allowlist</td></tr>
+  <tr><td class="k">录制与回放</td><td><code>src/capture/</code>：记录<b>归一化后的 canonical events</b>（命令行为、文件路径、目标地址、用户名），双文件结构（NDJSON payload + <code>CaptureManifest</code> sidecar），可跨平台回放；文件 owner-only 权限并与告警/运行日志分开存放。→ <b>不是原始 ETW/eBPF/ESF 载荷，也不能作为生产原始遥测输出</b></td></tr>
+  <tr><td class="k">运维与供应链</td><td><code>rustinel doctor</code>、<code>rustinel sigma doctor</code>、<code>rules install / update</code>（SHA-256 校验 + minisign 验签）、<code>update</code>（<code>self-replace</code> 自替换）；日志按 UTC 日期 <code>{filename}.{date}</code> 轮转，<code>RestrictedFileAppender</code> 控制 integration group 权限并<b>拒绝符号链接</b>；进程元数据缓存 <code>max_entries = 65536</code> 应对漏收退出事件</td></tr>
+  <tr><td class="k">明确的能力边界</td><td><code>README.md</code> 原文：<b>no anti-tamper, no pre-execution blocking, and no management console</b>。→ 自保护、预执行阻断、集中管控三项必须由自研 Supervisor 与平台侧补齐，不能对外宣称由 Rustinel 提供</td></tr>
+</table>
+
+<h3 class="sub" id="s5-2-3">5.2.3 源码级 PoC 验收清单（可直接作为阶段一出口条件）</h3>
+<table>
+  <tr><th style="width:200px">验收项</th><th style="width:300px">操作方式</th><th>通过判据</th></tr>
+  <tr><td class="k">六通道丢弃可观测</td><td>制造事件风暴（进程风暴 + 文件 churn + 网络扫描并发），持续读取 <code>telemetry.json</code></td><td>能取到每通道 <code>dropped</code> 与丢弃率；无通道出现「静默丢弃」（有丢失但计数为 0）</td></tr>
+  <tr><td class="k">心跳可判活</td><td>Supervisor 按 30s 周期 tail <code>heartbeat.json.&lt;date&gt;</code> 并上报</td><td>终端被杀后平台在 2 个周期内出现「静默」告警；跨日轮转不断链</td></tr>
+  <tr><td class="k">64MB 告警预算压测</td><td>磁盘写入限速或暂停，同时灌入大告警（<code>match_debug = full</code>）</td><td>进程不 OOM、不崩溃；恢复后 <code>alerts.json</code> 存在可识别缺口且进程存活；webhook 关闭场景下不出现无限堆积</td></tr>
+  <tr><td class="k">去重口径正确</td><td>构造同一规则连续命中 N 次</td><td>首条即时发出；rollup 行 <code>event.count = N-1</code>；平台侧按「缺失记 1」求和等于真实次数</td></tr>
+  <tr><td class="k">ETW 命令行捕获率</td><td>2000 次 <code>cmd /c echo</code>，分别用 <code>etw_process_flush_interval_ms = 5 / 20 / 0</code></td><td>5ms ≥ 99%，20ms 约 60%，0 约 16%；据此锁定 5ms 为生产默认并禁止下调为 0</td></tr>
+  <tr><td class="k">规则热加载韧性</td><td>①下发全量语法错误规则包 ②下发部分错误规则包 ③下发空 IOC 集</td><td>①旧引擎继续运行、无检测中断 ②可用规则生效、坏规则被跳过 ③拒绝加载并保留旧 IOC；三种情况均有日志与状态回报</td></tr>
+  <tr><td class="k">规则包供应链校验</td><td>篡改规则包 / 去掉签名后执行 <code>rules update</code></td><td>SHA-256 或 minisign 校验失败即拒绝安装，退出码非 0，且不污染现有规则目录</td></tr>
+  <tr><td class="k">主动响应 dry-run</td><td><code>response.enabled = true</code>、<code>prevention_enabled = false</code> 触发 critical 告警</td><td>只记录决策不终止进程；开启 prevention 后仅终止目标进程，<code>pid ≤ 4</code> 与 allowlist 生效；macOS 场景记录 PID 复用风险说明</td></tr>
+  <tr><td class="k">录制回放可用于规则 CI</td><td>录制一段真实行为，改动 Sigma 规则后离线 replay</td><td>同一录制可跨平台回放；规则命中变化可复现，作为策略上线前回归门禁</td></tr>
+</table>
+
+<div class="arch">
+<svg viewBox="0 0 1140 380" xmlns="http://www.w3.org/2000/svg" font-family="Microsoft YaHei,PingFang SC,sans-serif">
+  <rect x="20" y="16" width="1100" height="340" rx="10" fill="#16224a" stroke="#2e4573"/>
+  <text x="40" y="44" fill="#3ee08f" font-size="15" font-weight="bold">🟡 Rustinel 整体架构（单体引擎 · 默认告警落盘 · 可选 webhook 关闭）</text>
+  <rect x="40" y="60" width="680" height="270" rx="8" fill="#0f1d3d" stroke="#ffd257" stroke-width="1.5"/>
+  <text x="380" y="86" fill="#eaf3ff" font-size="14" text-anchor="middle" font-weight="bold">rustinel 单进程检测引擎（Rust）</text>
+  <rect x="60" y="100" width="290" height="150" rx="5" fill="#121c33" stroke="#2e4573"/>
+  <text x="205" y="124" fill="#dbe6f5" font-size="12" text-anchor="middle" font-weight="bold">采集层（原生遥测）</text>
+  <text x="205" y="148" fill="#93a7c8" font-size="11" text-anchor="middle">Windows：ETW（用户态，无驱动）</text>
+  <text x="205" y="168" fill="#93a7c8" font-size="11" text-anchor="middle">Linux：eBPF（内核 ≥ 5.8）</text>
+  <text x="205" y="188" fill="#93a7c8" font-size="11" text-anchor="middle">macOS：Endpoint Security + /dev/bpf</text>
+  <text x="205" y="212" fill="#5f7396" font-size="10.5" text-anchor="middle">六条有界通道：过载丢弃并计数</text>
+  <text x="205" y="232" fill="#5f7396" font-size="10.5" text-anchor="middle">telemetry.json / heartbeat 可外部消费</text>
+  <rect x="380" y="100" width="320" height="60" rx="5" fill="#121c33" stroke="#2e4573"/>
+  <text x="540" y="124" fill="#dbe6f5" font-size="12" text-anchor="middle" font-weight="bold">Sysmon 风格字段归一化</text>
+  <text x="540" y="146" fill="#93a7c8" font-size="10.5" text-anchor="middle">三端统一字段名 · 一个引擎一套配置</text>
+  <rect x="380" y="172" width="320" height="78" rx="5" fill="#121c33" stroke="#2e4573"/>
+  <text x="540" y="196" fill="#dbe6f5" font-size="12" text-anchor="middle" font-weight="bold">检测层</text>
+  <text x="540" y="218" fill="#93a7c8" font-size="10.5" text-anchor="middle">Sigma 行为 / YARA 文件+进程内存 / IOC</text>
+  <text x="540" y="238" fill="#5f7396" font-size="10.5" text-anchor="middle">YARA 按文件身份缓存 · 录制回放回归</text>
+  <rect x="60" y="268" width="290" height="50" rx="5" fill="#121c33" stroke="#2e4573"/>
+  <text x="205" y="288" fill="#dbe6f5" font-size="12" text-anchor="middle" font-weight="bold">规则/IOC 热加载</text>
+  <text x="205" y="306" fill="#93a7c8" font-size="10.5" text-anchor="middle">坏规则自动回滚，保持旧引擎运行</text>
+  <rect x="380" y="268" width="320" height="50" rx="5" fill="#121c33" stroke="#2e4573"/>
+  <text x="540" y="288" fill="#dbe6f5" font-size="12" text-anchor="middle" font-weight="bold">输出：alerts.json（ECS NDJSON 告警）</text>
+  <text x="540" y="306" fill="#ffb03a" font-size="10.5" text-anchor="middle">按日轮转 · 原始流需 fork 扩展</text>
+  <rect x="750" y="60" width="350" height="270" rx="8" fill="#0d2a4a" stroke="#3ee08f" stroke-width="1.5"/>
+  <text x="925" y="88" fill="#3ee08f" font-size="12.5" text-anchor="middle" font-weight="bold">自研 Supervisor 对接面</text>
+  <text x="925" y="116" fill="#dbe6f5" font-size="11" text-anchor="middle">① 告警文件 → tail → WAL → 收口上报</text>
+  <text x="925" y="140" fill="#dbe6f5" font-size="11" text-anchor="middle">② 规则目录 ← ws 策略下发</text>
+  <text x="925" y="164" fill="#dbe6f5" font-size="11" text-anchor="middle">（热加载+回滚 = 原子切换保障）</text>
+  <text x="925" y="192" fill="#dbe6f5" font-size="11" text-anchor="middle">③ doctor 指标 → 健康自检上报</text>
+  <text x="925" y="220" fill="#5f7396" font-size="10.5" text-anchor="middle">关闭可选 webhook，仅保留本地文件交付</text>
+  <text x="925" y="240" fill="#5f7396" font-size="10.5" text-anchor="middle">mTLS / 压缩 / 重传全部由主程序承担</text>
+  <text x="925" y="270" fill="#5f7396" font-size="10.5" text-anchor="middle">Windows/Linux/macOS 本地阈值响应可选</text>
+  <text x="925" y="290" fill="#5f7396" font-size="10.5" text-anchor="middle">macOS 用 kill(SIGKILL)，存在 PID 复用竞态</text>
+  <text x="570" y="374" fill="#5f7396" font-size="10.5" text-anchor="middle">Apache-2.0 · Rust 无 GC 常驻低开销 · 六通道丢弃可计数 · 单维护者（fork 兜底） · v1.11.0（2026-11）</text>
+</svg>
+</div>
+
+<h3 class="sub" id="s5-3">5.3 Elkeid <span class="tag t-pur">Supervisor 主要设计蓝本</span></h3>
+<table>
+  <tr><th style="width:180px">对接面</th><th>评估详情</th></tr>
+  <tr><td class="k">数据面（20%）</td><td class="bad">2/5 · Agent 数据经 gRPC+ProtoBuf 直发 AgentCenter→Kafka，<b>无本地文件输出模式</b>；对接 HTTP/2 数据面必须改 Go 通信层——修改+分发即触发 AGPL 义务</td></tr>
+  <tr><td class="k">控制面（10%）</td><td>3/5 · AgentCenter 指令下发体系完善（升级/配置/任务），但全部绑定 gRPC 私有通道，无法映射到 ws 控制面</td></tr>
+  <tr><td class="k">插件进程化（5%）</td><td class="rec">5/5 · Agent-插件子进程模型仍是六框架中与自研设计最同构的实现（Unix Socket + 多语言插件 + 心跳守护）</td></tr>
+  <tr><td class="k">跨平台（15%）</td><td class="bad">2/5 · 社区版 Linux-only（Windows 为闭源企业版）</td></tr>
+  <tr><td class="k">残余价值</td><td>① 插件子进程管理细节蓝本；② 其服务端「AgentCenter→Kafka→HUB」管线与本项目「终端 Agent Center 无状态接入层→Kafka→安全管理中心」结构同构，分流与规则设计可互证</td></tr>
+</table>
+<div class="verdict"><b>结论：</b>数据面 gRPC 与 AGPL 决定其代码不可进入主链路，但 Agent 的插件进程表、注册—心跳—重启、版本下发与灰度机制与 Supervisor 最同构。因此定位不是泛泛的“架构参考”，而是 <b>Supervisor 生命周期与版本管理的主要设计蓝本</b>；仅独立重实现，零源码、零依赖、零 IDL 复制。</div>
+
+<div class="arch">
+<svg viewBox="0 0 1140 630" xmlns="http://www.w3.org/2000/svg" font-family="Microsoft YaHei,PingFang SC,sans-serif">
+  <defs>
+    <marker id="arre" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="#ff5c74" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <marker id="arreb" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="#31d0ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <rect x="20" y="16" width="400" height="580" rx="10" fill="#16224a" stroke="#2e4573"/>
+  <text x="40" y="44" fill="#3ee08f" font-size="14" font-weight="bold">🟡 Elkeid Host Ability（社区版 Linux Host）</text>
+  <rect x="40" y="60" width="360" height="64" rx="7" fill="#0f1d3d" stroke="#31d0ff" stroke-width="1.5"/>
+  <text x="220" y="85" fill="#eaf3ff" font-size="13" text-anchor="middle" font-weight="bold">Elkeid Agent · 用户态宿主</text>
+  <text x="220" y="108" fill="#93a7c8" font-size="10.5" text-anchor="middle">管理端上能力组件 / 与 AgentCenter 通信</text>
+
+  <rect x="40" y="144" width="170" height="104" rx="7" fill="#101d42" stroke="#7c5cff"/>
+  <text x="125" y="169" fill="#dbe6f5" font-size="11.5" text-anchor="middle" font-weight="bold">Elkeid Driver · Kernel</text>
+  <text x="125" y="191" fill="#93a7c8" font-size="10" text-anchor="middle">Linux 内核层数据采集</text>
+  <text x="125" y="211" fill="#93a7c8" font-size="10" text-anchor="middle">兼容容器</text>
+  <text x="125" y="231" fill="#93a7c8" font-size="10" text-anchor="middle">常见 Rootkit 检测</text>
+  <rect x="230" y="144" width="170" height="104" rx="7" fill="#101d42" stroke="#7c5cff"/>
+  <text x="315" y="169" fill="#dbe6f5" font-size="11.5" text-anchor="middle" font-weight="bold">Elkeid RASP · Runtime</text>
+  <text x="315" y="191" fill="#93a7c8" font-size="10" text-anchor="middle">CPython / Golang / JVM</text>
+  <text x="315" y="211" fill="#93a7c8" font-size="10" text-anchor="middle">NodeJS / PHP</text>
+  <text x="315" y="231" fill="#93a7c8" font-size="10" text-anchor="middle">动态注入运行时探针</text>
+
+  <rect x="40" y="268" width="360" height="280" rx="8" fill="#0e1a36" stroke="#ffd257" stroke-dasharray="4 3"/>
+  <text x="220" y="292" fill="#ffd257" font-size="12" text-anchor="middle" font-weight="bold">Elkeid Agent Plugin List · 独立子进程</text>
+  <rect x="56" y="310" width="160" height="58" rx="5" fill="#101d42" stroke="#2e4573"/>
+  <text x="136" y="333" fill="#dbe6f5" font-size="10.5" text-anchor="middle">Driver Plugin</text>
+  <text x="136" y="353" fill="#93a7c8" font-size="9.5" text-anchor="middle">Driver 通信与数据处理</text>
+  <rect x="224" y="310" width="160" height="58" rx="5" fill="#101d42" stroke="#2e4573"/>
+  <text x="304" y="333" fill="#dbe6f5" font-size="10.5" text-anchor="middle">Collector Plugin</text>
+  <text x="304" y="353" fill="#93a7c8" font-size="9.5" text-anchor="middle">用户 / 任务 / 包信息</text>
+  <rect x="56" y="385" width="160" height="58" rx="5" fill="#101d42" stroke="#2e4573"/>
+  <text x="136" y="408" fill="#dbe6f5" font-size="10.5" text-anchor="middle">Journal Watcher</text>
+  <text x="136" y="428" fill="#93a7c8" font-size="9.5" text-anchor="middle">systemd / SSH 日志</text>
+  <rect x="224" y="385" width="160" height="58" rx="5" fill="#101d42" stroke="#2e4573"/>
+  <text x="304" y="408" fill="#dbe6f5" font-size="10.5" text-anchor="middle">Scanner Plugin</text>
+  <text x="304" y="428" fill="#93a7c8" font-size="9.5" text-anchor="middle">YARA 静态恶意文件检测</text>
+  <rect x="56" y="460" width="160" height="58" rx="5" fill="#101d42" stroke="#2e4573"/>
+  <text x="136" y="483" fill="#dbe6f5" font-size="10.5" text-anchor="middle">RASP Plugin</text>
+  <text x="136" y="503" fill="#93a7c8" font-size="9.5" text-anchor="middle">Attach 指令 / 探针数据汇聚</text>
+  <rect x="224" y="460" width="160" height="58" rx="5" fill="#101d42" stroke="#2e4573"/>
+  <text x="304" y="483" fill="#dbe6f5" font-size="10.5" text-anchor="middle">Baseline Plugin</text>
+  <text x="304" y="503" fill="#93a7c8" font-size="9.5" text-anchor="middle">端上基线风险识别</text>
+  <text x="220" y="574" fill="#5f7396" font-size="10.5" text-anchor="middle">Kernel / User Space 协同 · Agent 统一纳管端上组件</text>
+
+  <rect x="440" y="16" width="680" height="580" rx="10" fill="#141d44" stroke="#7c5cff"/>
+  <text x="460" y="44" fill="#7c5cff" font-size="14" font-weight="bold">🔴 Elkeid Backend Ability（自研平台整体替代）</text>
+  <rect x="460" y="60" width="300" height="94" rx="7" fill="#0f1830" stroke="#7c5cff"/>
+  <text x="610" y="88" fill="#dbe6f5" font-size="12.5" text-anchor="middle" font-weight="bold">Elkeid AgentCenter Cluster</text>
+  <text x="610" y="112" fill="#93a7c8" font-size="10.5" text-anchor="middle">Agent 通信与集中管理</text>
+  <text x="610" y="133" fill="#93a7c8" font-size="10.5" text-anchor="middle">升级 / 配置修改 / 任务下发</text>
+  <rect x="790" y="60" width="310" height="94" rx="7" fill="#0f1830" stroke="#31d0ff"/>
+  <text x="945" y="88" fill="#dbe6f5" font-size="12.5" text-anchor="middle" font-weight="bold">K8s API Server</text>
+  <text x="945" y="112" fill="#93a7c8" font-size="10.5" text-anchor="middle">K8s Audit Log</text>
+  <text x="945" y="133" fill="#93a7c8" font-size="10.5" text-anchor="middle">Ctrl &amp; Data</text>
+
+  <rect x="460" y="184" width="300" height="82" rx="7" fill="#0f1830" stroke="#31d0ff"/>
+  <text x="610" y="211" fill="#dbe6f5" font-size="12" text-anchor="middle" font-weight="bold">Elkeid ServiceDiscovery Cluster</text>
+  <text x="610" y="235" fill="#93a7c8" font-size="10" text-anchor="middle">组件定时注册 / 服务信息同步</text>
+  <text x="610" y="253" fill="#93a7c8" font-size="10" text-anchor="middle">组件相互可见 / 直接通信</text>
+  <rect x="790" y="184" width="310" height="82" rx="7" fill="#0f1830" stroke="#ffd257"/>
+  <text x="945" y="211" fill="#dbe6f5" font-size="12" text-anchor="middle" font-weight="bold">Elkeid Manager Cluster</text>
+  <text x="945" y="235" fill="#93a7c8" font-size="10" text-anchor="middle">后台统一管理</text>
+  <text x="945" y="253" fill="#93a7c8" font-size="10" text-anchor="middle">查询与管理接口</text>
+
+  <rect x="460" y="296" width="300" height="138" rx="7" fill="#0f1830" stroke="#3ee08f"/>
+  <text x="610" y="323" fill="#dbe6f5" font-size="12" text-anchor="middle" font-weight="bold">数据接入与基础组件</text>
+  <text x="610" y="350" fill="#3ee08f" font-size="11" text-anchor="middle">Kafka Cluster · 数据接入与分流</text>
+  <text x="610" y="378" fill="#93a7c8" font-size="10.5" text-anchor="middle">MongoDB Cluster · 数据存储</text>
+  <text x="610" y="406" fill="#93a7c8" font-size="10.5" text-anchor="middle">Redis Cluster · 缓存与协同</text>
+  <rect x="790" y="296" width="310" height="138" rx="7" fill="#0f1830" stroke="#ffd257"/>
+  <text x="945" y="323" fill="#dbe6f5" font-size="12.5" text-anchor="middle" font-weight="bold">Elkeid HUB · 策略引擎</text>
+  <text x="945" y="350" fill="#ffd257" font-size="11" text-anchor="middle">Rulesets</text>
+  <text x="945" y="378" fill="#93a7c8" font-size="10.5" text-anchor="middle">Leader API</text>
+  <text x="945" y="406" fill="#93a7c8" font-size="10.5" text-anchor="middle">Elkeid HUB Frontend</text>
+
+  <rect x="460" y="464" width="300" height="62" rx="7" fill="#0f1830" stroke="#3ee08f"/>
+  <text x="610" y="490" fill="#dbe6f5" font-size="11.5" text-anchor="middle" font-weight="bold">Offline Data Cluster</text>
+  <text x="610" y="512" fill="#93a7c8" font-size="10" text-anchor="middle">离线数据分析</text>
+  <rect x="790" y="464" width="310" height="62" rx="7" fill="#0f1830" stroke="#7c5cff"/>
+  <text x="945" y="490" fill="#dbe6f5" font-size="11.5" text-anchor="middle" font-weight="bold">Manager API / Elkeid Console</text>
+  <text x="945" y="512" fill="#93a7c8" font-size="10" text-anchor="middle">管理查询接口与 Web 前端</text>
+
+  <line x1="400" y1="92" x2="460" y2="92" stroke="#ff5c74" stroke-width="1.5" marker-end="url(#arre)"/>
+  <line x1="790" y1="107" x2="760" y2="107" stroke="#31d0ff" stroke-width="1.5" marker-end="url(#arreb)"/>
+  <line x1="790" y1="225" x2="760" y2="225" stroke="#31d0ff" stroke-width="1.5" marker-end="url(#arreb)"/>
+  <line x1="760" y1="365" x2="790" y2="365" stroke="#31d0ff" stroke-width="1.5" marker-end="url(#arreb)"/>
+  <line x1="610" y1="434" x2="610" y2="464" stroke="#31d0ff" stroke-width="1.5" marker-end="url(#arreb)"/>
+  <text x="780" y="553" fill="#93a7c8" font-size="10.5" text-anchor="middle">数据：Agent → AgentCenter → Kafka → HUB / Offline Data</text>
+  <text x="780" y="575" fill="#93a7c8" font-size="10.5" text-anchor="middle">控制：AgentCenter → Agent → Plugin；ServiceDiscovery 维持后台组件可见</text>
+  <text x="570" y="618" fill="#ff5c74" font-size="10.5" text-anchor="middle" font-weight="bold">本项目边界：仅作 Supervisor 设计蓝本 · gRPC + AGPL · 零源码 / 零依赖 / 零 IDL 复制</text>
+</svg>
+</div>
+
+<h3 class="sub" id="s5-3-1">5.3.1 Elkeid Host Ability：组件职责</h3>
+<table>
+  <tr><th style="width:210px">Host 组件</th><th>官方职责与本项目参考点</th></tr>
+  <tr><td class="k">Elkeid Agent</td><td>用户态 Agent，管理各个端上能力组件并与 AgentCenter 通信；是 Supervisor 插件生命周期与控制面映射的主要设计对象</td></tr>
+  <tr><td class="k">Elkeid Driver</td><td>负责 Linux Kernel 层数据采集，兼容容器并检测常见 Rootkit；属于内核能力，不是 Supervisor 本身</td></tr>
+  <tr><td class="k">Elkeid RASP</td><td>支持 CPython、Golang、JVM、NodeJS、PHP 运行时数据采集探针，并可动态注入运行时</td></tr>
+  <tr><td class="k">Driver Plugin</td><td>与 Elkeid Driver 通信并处理其传递的数据</td></tr>
+  <tr><td class="k">Collector Plugin</td><td>采集端上资产与关键信息，包括用户、定时任务、包信息等</td></tr>
+  <tr><td class="k">Journal Watcher</td><td>监测 systemd 日志，当前支持 SSH 相关日志采集与上报</td></tr>
+  <tr><td class="k">Scanner Plugin</td><td>在端上使用 YARA 静态检测恶意文件</td></tr>
+  <tr><td class="k">RASP Plugin</td><td>分析系统进程运行时、上报运行时信息、处理 Attach 指令并收集各探针上报数据</td></tr>
+  <tr><td class="k">Baseline Plugin</td><td>在端上识别基线风险</td></tr>
+</table>
+
+<h3 class="sub" id="s5-3-2">5.3.2 Elkeid Backend Ability 与数据接入</h3>
+<table>
+  <tr><th style="width:230px">Backend 组件</th><th>职责 / 数据作用</th></tr>
+  <tr><td class="k">Elkeid AgentCenter</td><td>与 Agent 通信并管理 Agent，包括升级、配置修改和任务下发</td></tr>
+  <tr><td class="k">Elkeid ServiceDiscovery</td><td>后台组件定时注册并同步服务信息，保证组件相互可见并便于直接通信</td></tr>
+  <tr><td class="k">Elkeid Manager</td><td>管理整个后台，提供查询与管理接口</td></tr>
+  <tr><td class="k">Elkeid Console</td><td>Elkeid 前端，通过 Manager API 提供 Web 管理入口</td></tr>
+  <tr><td class="k">Elkeid HUB</td><td>策略引擎，包含 Rulesets、Leader API 与 HUB Frontend</td></tr>
+  <tr><td class="k">Kafka Cluster</td><td>承接 AgentCenter 数据并向后端分析能力分流</td></tr>
+  <tr><td class="k">MongoDB / Redis Cluster</td><td>分别承担数据存储、缓存与后台协同</td></tr>
+  <tr><td class="k">K8s API Server</td><td>向 AgentCenter 提供 K8s Audit Log 以及相关控制与数据</td></tr>
+  <tr><td class="k">Offline Data Cluster</td><td>承接离线数据分析</td></tr>
+</table>
+<div class="note"><b>数据接入主线：</b>Host 侧 Driver、Collector、Journal Watcher、Scanner、RASP、Baseline 等能力组件由 Agent 统一管理；数据经 <b>Agent → AgentCenter → Kafka</b> 接入后端，再进入 HUB 策略分析或 Offline Data。控制面则由 AgentCenter 承担升级、配置和任务下发。该闭环可用于校验自研 Supervisor 的职责划分，但本项目仍以 ws 控制面、HTTP/2 数据面和自研 IPC 独立实现，不复用 Elkeid gRPC/Protobuf 契约。</div>
+
+<h3 class="sub" id="s5-4">5.4 Wazuh <span class="tag t-red">排除定案</span></h3>
+<table>
+  <tr><th style="width:180px">对接面</th><th>评估详情（官方组件文档 + 端口基线校准）</th></tr>
+  <tr><td class="k">产品定位</td><td><b>Wazuh 是「自建 SOC 平台」，不是「终端 EDR Agent」</b>：Agent + Server + Indexer + Dashboard 四组件构成 SIEM + XDR 闭环，<b>检测结论由 Server 侧分析引擎（decoders → rules）产生</b>，Agent 只负责采集与本地响应执行。能力越完整，能被单独摘出来当终端插件的部分就越少——这才是它得 2.55 分的原因，而不是「产品能力弱」</td></tr>
+  <tr><td class="k">数据面（20%）</td><td class="bad">1/5 · Agent→Manager 私有 TCP <b>1514</b>（默认 TCP、可选 UDP，AES 加密）——六框架中唯一<b>既无 HTTP 端点、也无本地标准格式输出</b>；agent 缓冲为内存 counter 上限（非持久 WAL）。对接唯一路径=重写 C 传输层 → 触发 GPLv2 修改义务</td></tr>
+  <tr><td class="k">控制面（10%）</td><td>2/5 · 注册（<b>1515</b> TLS 认证并下发唯一密钥）/ 指令 / agent group 集中配置体系完整，但全部锁死在 Manager 私有协议上；<b>55000 是平台管理 API（HTTPS），不是终端控制面</b>；引入 Manager 又与自研平台职责重叠</td></tr>
+  <tr><td class="k">插件进程化（5%）</td><td class="bad">1/5 · 模块以 wmodules 共享库编译内联，非独立进程；进程化改造等于另写一个 agent</td></tr>
+  <tr><td class="k">跨平台（15%）</td><td class="rec">4/5 · <b>Wazuh 真正的强项</b>：单一 Agent 覆盖 Windows / macOS / Linux / Solaris / HP-UX / AIX，六候选中平台矩阵最宽。但「跨平台」≠「行为遥测深度」——Windows 侧以 Event Log 为主，缺 ETW 进程级行为遥测等价能力；Linux 侧不以 eBPF 为核心</td></tr>
+  <tr><td class="k">许可（10%）</td><td>2/5 · <b>混合许可</b>：Agent / Server / Ruleset 为 GPLv2，Indexer / Dashboard 为 Apache-2.0（OpenSearch 系）。GPLv2 无网络条款，纯 SaaS 侧不触发，比 AGPLv3 温和；但<b>随安装包分发 agent 即须提供对应源码及修改</b>，与「主程序闭源 + 零源码依赖」的交付纪律冲突。<b>5.0 起新分析 engine 转为 AGPLv3</b>（独立 LICENSE-engine），若未来采用其服务端能力，网络提供服务亦将触发开源义务——风险单向上升</td></tr>
+  <tr><td class="k">六大能力模块</td><td>入侵检测 IDS（签名 + 行为，含隐藏进程 / Rootkit / 无文件）、日志分析、FIM、漏洞检测 VD、配置评估 SCA（600+ CIS/DISA/STIG）、主动响应 AR——逐项映射见 5.4.2：<b>五项属平台能力，仅 AR 执行侧与 FIM 采集侧触及终端</b></td></tr>
+  <tr><td class="k">残余价值</td><td>① 规则 / 解码器生态（7000+ 规则、MITRE ATT&CK 映射）→ 平台侧分析规则设计语料；② Active Response 三段式（触发→执行→回传）→ 自研响应动作框架范式；③ SCA 基线包结构 → P2 合规能力可选参考。全部为零代码引入</td></tr>
+</table>
+<div class="verdict"><b>结论：</b>Wazuh 的能力清单在六个候选中<b>最完整</b>，但完整度全部长在被自研平台替代的 Manager / Indexer / Dashboard 侧：终端侧三项对接面（数据面 1、控制面 2、插件进程 1）全部不可用，加权后仅 2.55 分。<b>排除定案</b>——本项目需要的是一个能被 Supervisor 纳管的终端行为采集与检测进程，而 Wazuh 要求的是放弃自研平台、直接采用它的整套 SOC。<b>部署 Wazuh 的实质是「再建一套安全管理中心」，与既定路线重复建设。</b></div>
+
+<h3 class="sub" id="s5-4-1">5.4.1 四大组件与端口基线（官方口径）</h3>
+<table>
+  <tr><th style="width:150px">组件</th><th style="width:300px">官方职责</th><th style="width:130px">默认端口</th><th>本项目取舍</th></tr>
+  <tr><td class="k">Wazuh agent</td><td>单包跨平台代理：采集日志、FIM、SCA、软件清单，并执行本地响应脚本</td><td>出向 1514（数据）<br>1515（注册）</td><td class="mid">唯一相关项；因私有协议 + GPLv2 分发义务排除</td></tr>
+  <tr><td class="k">Wazuh server</td><td>接收 agent 数据，decoders 解码 + rules 规则评估生成告警，下发响应指令；单机可分析数千 agent，可集群横向扩展并远程管理 agent</td><td>1514 / 1515 / 55000（API）<br>1516（集群）</td><td class="bad">不需要——与安全管理中心（策略 / 分析 / 响应）职责完全重叠</td></tr>
+  <tr><td class="k">Wazuh indexer</td><td>高可扩展全文检索与分析引擎，索引存储 server 产生的告警（OpenSearch 系）</td><td>9200（REST）<br>9300（传输）</td><td class="bad">不需要——本项目用 Kafka + ClickHouse / 检索层</td></tr>
+  <tr><td class="k">Wazuh dashboard</td><td>Web 可视化与管理：合规（PCI DSS / GDPR / 等保）、漏洞、FIM、配置评估、云事件等面板</td><td>443</td><td class="bad">不需要——自研安全管理中心可视化</td></tr>
+</table>
+<div class="note"><b>端口基线：</b>TCP <b>443</b> 控制台访问；TCP <b>1514</b> Agent↔Manager 常规数据传输（默认 TCP，可切 UDP）；TCP <b>1515</b> Agent 注册与密钥下发；TCP <b>55000</b> Wazuh API（HTTPS）；集群模式另有 TCP <b>1516</b> 节点间通信，索引器占 9200/9300。<br><b>由此得出的部署事实：</b>一个最小可用 Wazuh = <b>4 个组件 + 4~6 个开放端口 + 一套独立证书体系 + 独立升级节奏</b>。这不是「装一个 agent」，而是并行再建一套安全管理中心——与第 6.2 节「终端 Agent Center + 安全管理中心」两中心规划直接冲突。</div>
+
+<h3 class="sub" id="s5-4-2">5.4.2 六大能力模块与本项目需求的逐项映射</h3>
+<table>
+  <tr><th style="width:150px">能力模块</th><th style="width:300px">官方定位</th><th>本项目是否需要 / 判定</th></tr>
+  <tr><td class="k">入侵检测 IDS</td><td>签名 + 行为双引擎，检测隐藏进程、Rootkit、无文件攻击</td><td class="mid">需要「终端本地实时检测」，但<b>形态不匹配</b>：结论在 Server 侧产生；隐藏进程 / Rootkit 依赖 rootcheck 周期扫描，不构成实时行为链</td></tr>
+  <tr><td class="k">日志分析</td><td>实时采集 OS 与应用日志（Windows Event Log、syslog、Apache 等），正则 + 解码 + 富化一步到位</td><td class="mid">可作补充数据源，但 AI 场景需要进程树、工具调用、模型 / 数据访问链，日志面覆盖不到</td></tr>
+  <tr><td class="k">文件完整性 FIM</td><td>监控文件内容、权限、属主变更，满足 PCI DSS 10.5.5 合规硬要求</td><td class="bad">不需要——项目已明确不做通用资产台账与周期状态查询；且 FIM 不产生 AI 行为链路</td></tr>
+  <tr><td class="k">漏洞检测 VD</td><td>Agent 上报软件清单，服务端关联持续更新的 CVE 库并按 CVSS 评分</td><td class="bad">不需要——本项目无漏洞管理产品目标，且 CVE 关联在服务端</td></tr>
+  <tr><td class="k">配置评估 SCA</td><td>内置 600+ CIS / DISA / STIG 基线，一键扫描并给出修复命令</td><td class="mid">不需要（P2 可选）——基线包结构可作 P2 合规能力参考，不进入主链路</td></tr>
+  <tr><td class="k">主动响应 AR</td><td>检测到威胁后自动封禁 IP、停止服务、隔离主机</td><td class="mid">机制可借鉴（脚本化 + 白名单 + 超时回滚），但指令由 Manager 下发，<b>终端本地闭环弱于 Rustinel 的进程级 terminate</b></td></tr>
+</table>
+<div class="note"><b>错位点：</b>六项能力里<b>没有一项</b>是「终端本地实时行为检测 + 进程级响应」的组合。Rustinel 用单进程 + 本地 Sigma/YARA/IOC 就覆盖了这块；Wazuh 需要整套四组件平台才能给出同样结论。<b>这就是「平台完整度」与「终端适配度」的错位——评分衡量的是后者。</b></div>
+
+<div class="note"><b>版本演进观察（不改变本期结论）：</b>Wazuh 5.0 的公开设计说明显示，Manager 与 Agent 进程将彻底分离（移除 Agent ID 000），以 <b>Universal Dictionary</b> 做类 ECS / OCSF 的字段归一，漏洞检测改由 Indexer 统一裁决，同时新分析 engine 转为 AGPLv3。<b>对项目的三点含义：</b>① 归一化若最终沉淀为公开 schema，可作自研 ECS 字段映射的交叉校验语料；② 但传输仍是私有协议、engine 许可更严，<b>终端对接门槛不降反升</b>；③ 5.0 尚处 RC 阶段，不作为选型依据，仅列入长期观察项——若其未来开放标准 HTTP 端点且许可回调，再重新评估。</div>
+
+<div class="arch">
+<svg viewBox="0 0 1140 380" xmlns="http://www.w3.org/2000/svg" font-family="Microsoft YaHei,PingFang SC,sans-serif">
+  <defs>
+    <marker id="arrw" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="#ff5c74" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+  <rect x="20" y="16" width="640" height="340" rx="10" fill="#16224a" stroke="#2e4573"/>
+  <text x="40" y="44" fill="#3ee08f" font-size="14" font-weight="bold">🟡 终端侧（Wazuh Agent · 单体 C 进程 · 单包跨平台）</text>
+  <rect x="40" y="60" width="600" height="270" rx="8" fill="#0f1d3d" stroke="#ff5c74" stroke-width="1.5"/>
+  <text x="340" y="86" fill="#eaf3ff" font-size="13" text-anchor="middle" font-weight="bold">Agent 单体进程（模块 = 共享库编译内联，非独立进程）</text>
+  <rect x="60" y="104" width="180" height="50" rx="5" fill="#101d42" stroke="#2e4573"/>
+  <text x="150" y="126" fill="#93a7c8" font-size="11" text-anchor="middle">日志收集模块</text>
+  <text x="150" y="142" fill="#5f7396" font-size="10" text-anchor="middle">事件日志 / Sysmon</text>
+  <rect x="250" y="104" width="180" height="50" rx="5" fill="#101d42" stroke="#2e4573"/>
+  <text x="340" y="126" fill="#93a7c8" font-size="11" text-anchor="middle">FIM 文件完整性</text>
+  <text x="340" y="142" fill="#5f7396" font-size="10" text-anchor="middle">文件监控</text>
+  <rect x="440" y="104" width="180" height="50" rx="5" fill="#101d42" stroke="#2e4573"/>
+  <text x="530" y="126" fill="#93a7c8" font-size="11" text-anchor="middle">SCA 配置评估</text>
+  <text x="530" y="142" fill="#5f7396" font-size="10" text-anchor="middle">CIS 基线检查</text>
+  <rect x="60" y="164" width="180" height="50" rx="5" fill="#101d42" stroke="#2e4573"/>
+  <text x="150" y="186" fill="#93a7c8" font-size="11" text-anchor="middle">Active Response</text>
+  <text x="150" y="202" fill="#5f7396" font-size="10" text-anchor="middle">响应脚本执行</text>
+  <rect x="250" y="164" width="180" height="50" rx="5" fill="#101d42" stroke="#2e4573"/>
+  <text x="340" y="186" fill="#93a7c8" font-size="11" text-anchor="middle">漏洞检测模块</text>
+  <text x="340" y="202" fill="#5f7396" font-size="10" text-anchor="middle">软件清单比对</text>
+  <rect x="440" y="164" width="180" height="50" rx="5" fill="#101d42" stroke="#2e4573"/>
+  <text x="530" y="186" fill="#93a7c8" font-size="11" text-anchor="middle">Agent 缓冲</text>
+  <text x="530" y="202" fill="#5f7396" font-size="10" text-anchor="middle">counter 上限，非持久化</text>
+  <text x="340" y="248" fill="#5f7396" font-size="10.5" text-anchor="middle">模块增删需重编译整个 agent · 模块崩溃拖垮进程 · 仅 C 语言</text>
+  <text x="340" y="272" fill="#5f7396" font-size="10.5" text-anchor="middle">agent group 分组集中配置（策略分组下发参考）</text>
+  <text x="340" y="296" fill="#5f7396" font-size="10.5" text-anchor="middle">Agent 平台：Windows / macOS / Linux / Solaris / HP-UX / AIX</text>
+  <text x="340" y="316" fill="#ff5c74" font-size="11" text-anchor="middle" font-weight="bold">私有 TCP 1514 数据 + 1515 注册 · AES 加密（无本地标准输出）</text>
+  <rect x="700" y="16" width="420" height="340" rx="10" fill="#141d44" stroke="#7c5cff"/>
+  <text x="720" y="44" fill="#7c5cff" font-size="14" font-weight="bold">🔴 服务端（价值集中区，自研平台替代）</text>
+  <rect x="720" y="60" width="380" height="80" rx="6" fill="#0f1830" stroke="#7c5cff"/>
+  <text x="910" y="88" fill="#dbe6f5" font-size="12.5" text-anchor="middle" font-weight="bold">Wazuh Manager（1514 / 1515 / 55000 / 1516）</text>
+  <text x="910" y="110" fill="#93a7c8" font-size="11" text-anchor="middle">remoted / authd / analysisd 规则引擎</text>
+  <text x="910" y="128" fill="#93a7c8" font-size="11" text-anchor="middle">decoder → rule → AR 分层（ATT&CK 映射语料）</text>
+  <rect x="720" y="156" width="380" height="60" rx="6" fill="#0f1830" stroke="#7c5cff"/>
+  <text x="910" y="182" fill="#dbe6f5" font-size="12.5" text-anchor="middle" font-weight="bold">Wazuh Indexer（9200 / 9300）</text>
+  <text x="910" y="202" fill="#93a7c8" font-size="11" text-anchor="middle">告警索引与存储（OpenSearch 系 · ALv2）</text>
+  <rect x="720" y="232" width="380" height="60" rx="6" fill="#0f1830" stroke="#7c5cff"/>
+  <text x="910" y="258" fill="#dbe6f5" font-size="12.5" text-anchor="middle" font-weight="bold">Wazuh Dashboard（443）</text>
+  <text x="910" y="278" fill="#93a7c8" font-size="11" text-anchor="middle">可视化与合规报告（等保 / PCI DSS / GDPR）</text>
+  <text x="910" y="322" fill="#ff5c74" font-size="10.5" text-anchor="middle" font-weight="bold">对接判定：改 C 传输层 = GPLv2 源码义务 → 商业红线</text>
+  <line x1="640" y1="316" x2="720" y2="100" stroke="#ff5c74" stroke-width="1.5" marker-end="url(#arrw)"/>
+</svg>
+</div>
+
+<h3 class="sub" id="s5-5">5.5 Velociraptor <span class="tag t-red">独立取证工具</span></h3>
+<table>
+  <tr><th style="width:180px">对接面</th><th>评估详情</th></tr>
+  <tr><td class="k">数据面（20%）</td><td class="bad">2/5 · client↔server gRPC + mTLS 深度耦合（安全模型与传输一体，不可换装）；离线收集器的本地文件模式是<b>一次性取证场景</b>，非常驻上报通道</td></tr>
+  <tr><td class="k">控制面（10%）</td><td>2/5 · Hunt/Artifact 下发绑定其 Server，无法映射 ws 控制面</td></tr>
+  <tr><td class="k">插件进程化（5%）</td><td>2/5 · VQL Artifact 为脚本包，非进程模型</td></tr>
+  <tr><td class="k">许可（10%）</td><td class="bad">AGPLv3：闭源商业链路无合规路径，一票否决</td></tr>
+  <tr><td class="k">残余价值</td><td>平台侧独立部署的应急取证工具（与商业产品隔离）：重大事件按需深度取证（MFT/Prefetch/内存），事件数据以导出文件进入自研分析平台</td></tr>
+</table>
+<div class="verdict"><b>结论：</b>定位明确：不进终端插件池、不接自研通道，作为 SOC 侧独立工具存在。</div>
+
+<div class="arch">
+<svg viewBox="0 0 1140 380" xmlns="http://www.w3.org/2000/svg" font-family="Microsoft YaHei,PingFang SC,sans-serif">
+  <defs>
+    <marker id="arrv" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="#ff5c74" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+  <rect x="20" y="16" width="640" height="340" rx="10" fill="#16224a" stroke="#2e4573"/>
+  <text x="40" y="44" fill="#3ee08f" font-size="14" font-weight="bold">🟡 终端侧（client · 单 Go 二进制）</text>
+  <rect x="40" y="60" width="600" height="270" rx="8" fill="#0f1d3d" stroke="#ff5c74" stroke-width="1.5"/>
+  <text x="340" y="86" fill="#eaf3ff" font-size="13" text-anchor="middle" font-weight="bold">Velociraptor client（VQL 引擎驱动）</text>
+  <rect x="60" y="104" width="280" height="60" rx="5" fill="#101d42" stroke="#2e4573"/>
+  <text x="200" y="128" fill="#93a7c8" font-size="11" text-anchor="middle">Client Monitoring Artifacts</text>
+  <text x="200" y="146" fill="#5f7396" font-size="10" text-anchor="middle">事件持续监控（进程/文件/日志）</text>
+  <rect x="350" y="104" width="270" height="60" rx="5" fill="#101d42" stroke="#2e4573"/>
+  <text x="485" y="128" fill="#93a7c8" font-size="11" text-anchor="middle">Hunt 响应</text>
+  <text x="485" y="146" fill="#5f7396" font-size="10" text-anchor="middle">全网猎捕任务执行</text>
+  <rect x="60" y="180" width="280" height="60" rx="5" fill="#101d42" stroke="#2e4573"/>
+  <text x="200" y="204" fill="#93a7c8" font-size="11" text-anchor="middle">Offline Collector（离线旁路）</text>
+  <text x="200" y="222" fill="#5f7396" font-size="10" text-anchor="middle">一次性取证采集包（结果写本地文件）</text>
+  <rect x="350" y="180" width="270" height="60" rx="5" fill="#101d42" stroke="#2e4573"/>
+  <text x="485" y="204" fill="#93a7c8" font-size="11" text-anchor="middle">文件雕刻 / 内存采集</text>
+  <text x="485" y="222" fill="#5f7396" font-size="10" text-anchor="middle">按需深度取证能力</text>
+  <text x="340" y="272" fill="#5f7396" font-size="10.5" text-anchor="middle">Artifact = VQL 脚本包（工件即策略 · 热下发） · 非进程插件模型</text>
+  <text x="340" y="316" fill="#ff5c74" font-size="11" text-anchor="middle" font-weight="bold">gRPC + mTLS 双向认证（安全模型与传输一体，不可换装）</text>
+  <rect x="700" y="16" width="420" height="340" rx="10" fill="#141d44" stroke="#7c5cff"/>
+  <text x="720" y="44" fill="#7c5cff" font-size="14" font-weight="bold">🔴 服务端（Velociraptor Server）</text>
+  <rect x="720" y="60" width="380" height="70" rx="6" fill="#0f1830" stroke="#7c5cff"/>
+  <text x="910" y="86" fill="#dbe6f5" font-size="12.5" text-anchor="middle" font-weight="bold">Web GUI + Hunt 调度</text>
+  <text x="910" y="108" fill="#93a7c8" font-size="11" text-anchor="middle">全网并发下发 / 结果聚合 / 笔记本分析</text>
+  <rect x="720" y="146" width="380" height="60" rx="6" fill="#0f1830" stroke="#7c5cff"/>
+  <text x="910" y="172" fill="#dbe6f5" font-size="12.5" text-anchor="middle" font-weight="bold">多组织多租户</text>
+  <text x="910" y="192" fill="#93a7c8" font-size="11" text-anchor="middle">OIDC 登录 / 角色权限（MSP 场景）</text>
+  <rect x="720" y="222" width="380" height="60" rx="6" fill="#0f1830" stroke="#7c5cff"/>
+  <text x="910" y="248" fill="#dbe6f5" font-size="12.5" text-anchor="middle" font-weight="bold">Artifact Exchange 生态</text>
+  <text x="910" y="268" fill="#93a7c8" font-size="11" text-anchor="middle">社区工件共享（YARA / Sigma 集成）</text>
+  <text x="910" y="322" fill="#ff5c74" font-size="10.5" text-anchor="middle" font-weight="bold">定位：SOC 侧独立应急取证工具，与商业链路物理隔离部署</text>
+  <line x1="640" y1="316" x2="720" y2="95" stroke="#ff5c74" stroke-width="1.5" marker-end="url(#arrv)"/>
+</svg>
+</div>
+
+<h3 class="sub" id="s5-6">5.6 OpenEDR <span class="tag t-red">排除定案</span></h3>
+<table>
+  <tr><th style="width:180px">对接面</th><th>评估详情</th></tr>
+  <tr><td class="k">数据面（20%）</td><td>2/5 · 本地事件文件→Filebeat→Elasticsearch 的文件模式存在，理论上可由自研 uploader 替代——但输出格式私有（无 ECS/Sysmon 风格归一化），对接价值低于 Rustinel 同类模式</td></tr>
+  <tr><td class="k">控制面 / 插件面</td><td>1/5 / 2/5 · 无远程控制面，无插件机制</td></tr>
+  <tr><td class="k">致命项</td><td class="bad">CASL 源码可得许可（限制收费分发）+ 2022 年后无实质维护 + 仅 Windows + 内核驱动代码无人维护——四项叠加无引入理由</td></tr>
+</table>
+<div class="verdict"><b>结论：</b>文件输出模式与 Rustinel 同型但全面劣于后者（许可、归一化、维护）。排除定案。</div>
+
+<div class="arch">
+<svg viewBox="0 0 1140 340" xmlns="http://www.w3.org/2000/svg" font-family="Microsoft YaHei,PingFang SC,sans-serif">
+  <defs>
+    <marker id="arro" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="#ff5c74" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+  <rect x="20" y="16" width="640" height="300" rx="10" fill="#16224a" stroke="#2e4573"/>
+  <text x="40" y="44" fill="#3ee08f" font-size="14" font-weight="bold">🟡 终端侧（仅 Windows · C++）</text>
+  <rect x="40" y="60" width="600" height="230" rx="8" fill="#0f1d3d" stroke="#ff5c74" stroke-width="1.5"/>
+  <text x="340" y="86" fill="#eaf3ff" font-size="13" text-anchor="middle" font-weight="bold">OpenEDR 组件（固定结构 · 无插件机制）</text>
+  <rect x="60" y="104" width="270" height="60" rx="5" fill="#101d42" stroke="#2e4573"/>
+  <text x="195" y="128" fill="#93a7c8" font-size="11" text-anchor="middle">内核驱动采集</text>
+  <text x="195" y="146" fill="#5f7396" font-size="10" text-anchor="middle">进程/文件/注册表遥测（需持续适配）</text>
+  <rect x="350" y="104" width="270" height="60" rx="5" fill="#101d42" stroke="#2e4573"/>
+  <text x="485" y="128" fill="#93a7c8" font-size="11" text-anchor="middle">用户态服务</text>
+  <text x="485" y="146" fill="#5f7396" font-size="10" text-anchor="middle">事件输出到本地文件</text>
+  <rect x="60" y="180" width="560" height="60" rx="5" fill="#101d42" stroke="#2e4573"/>
+  <text x="340" y="204" fill="#93a7c8" font-size="11" text-anchor="middle">本地事件文件（私有格式，无 ECS/Sysmon 风格归一化）</text>
+  <text x="340" y="222" fill="#5f7396" font-size="10" text-anchor="middle">默认路径：ProgramData\edrsvc\log\output_events</text>
+  <text x="340" y="270" fill="#5f7396" font-size="10.5" text-anchor="middle">驱动级自研维护成本极高（内核适配/签名/蓝屏）——反面教材</text>
+  <rect x="700" y="16" width="420" height="300" rx="10" fill="#141d44" stroke="#7c5cff"/>
+  <text x="720" y="44" fill="#7c5cff" font-size="14" font-weight="bold">🔴 管道后端（固定不可替换）</text>
+  <rect x="720" y="60" width="380" height="60" rx="6" fill="#0f1830" stroke="#7c5cff"/>
+  <text x="910" y="86" fill="#dbe6f5" font-size="12.5" text-anchor="middle" font-weight="bold">Filebeat 转发器</text>
+  <text x="910" y="108" fill="#93a7c8" font-size="11" text-anchor="middle">逐行读取本地事件文件并转发</text>
+  <rect x="720" y="140" width="380" height="70" rx="6" fill="#0f1830" stroke="#7c5cff"/>
+  <text x="910" y="168" fill="#dbe6f5" font-size="12.5" text-anchor="middle" font-weight="bold">Elasticsearch</text>
+  <text x="910" y="190" fill="#93a7c8" font-size="11" text-anchor="middle">本地或云端部署（管道终点固定）</text>
+  <text x="910" y="250" fill="#ff5c74" font-size="10.5" text-anchor="middle" font-weight="bold">对接判定：无控制面 · 无插件面 · CASL 许可限制收费</text>
+  <text x="910" y="272" fill="#ff5c74" font-size="10.5" text-anchor="middle" font-weight="bold">2022 年后无实质维护（实质弃维）</text>
+  <line x1="640" y1="210" x2="720" y2="90" stroke="#ff5c74" stroke-width="1.5" marker-end="url(#arro)"/>
+</svg>
+</div>
+
+<!-- ================= 06 集成风格与目标架构 ================= -->
+<h2 class="sec" id="sec06"><span class="no">06</span>集成风格决策与目标架构规划</h2>
+<div class="secdesc">数据面统一收口在 Supervisor。本章给出 AI 防护范围下的平台能力、精简插件池与三端采集分工，默认不再部署 osquery（终端 EDR Agent 门禁排除）。</div>
+<h3 class="sub" id="s6-1">6.1 插件数据交付风格</h3>
+<table>
+  <tr><th style="width:170px">风格</th><th style="width:330px">模式</th><th>优劣</th><th style="width:110px">判定</th></tr>
+  <tr><td class="k">A · 收口型</td><td>Rustinel 默认交付告警文件，AIDR SDK 交付 AI 数据，后续插件通过本地文件或 IPC → Supervisor → WAL → zstd / HTTP/2 / mTLS → <b>终端 Agent Center 无状态接入层</b> → Kafka → 安全管理中心</td><td>✔ 单一 mTLS / WAL / 重传与幂等逻辑；关闭 Rustinel 可选 webhook，传输与审计边界统一<br>✘ 若启用原始遥测增强，主程序需承担高吞吐搬运、分片与背压</td><td class="rec">🔴 P0 唯一推荐</td></tr>
+  <tr><td class="k">B · 插件直连</td><td>插件自行连接终端 Agent Center 的 HTTP/2 数据接入层</td><td>✔ 个别场景接入快<br>✘ 证书、WAL、压缩、重试与升级逻辑分散，破坏统一可靠性语义</td><td class="bad">不采用</td></tr>
+</table>
+
+<h3 class="sub" id="s6-2">6.2 自研服务端管理平台：两中心与六项能力</h3>
+<table>
+  <tr><th style="width:150px">中心</th><th style="width:155px">能力</th><th style="width:355px">核心内容</th><th>技术依赖 / 协作边界</th></tr>
+  <tr><td class="k">终端 Agent Center</td><td class="k">终端集中管控</td><td>终端注册 / 分组 / 标签、在线状态、远程指令、灰度发布与回滚</td><td><b>WS 连接网关</b>负责长连接、连接路由与跨节点推送；Elkeid AgentCenter 限流、服务发现和负载均衡仅作设计参考</td></tr>
+  <tr><td class="k">终端 Agent Center</td><td class="k">统一日志采集</td><td>接入 Rustinel 告警与健康数据、AIDR AI 资产和行为数据；可选接入 fork 原始遥测</td><td><b>无状态接入层</b>提供 HTTP/2 + mTLS、证书校验、解压、幂等去重和 topic 路由；Kafka 解耦安全管理中心</td></tr>
+  <tr><td class="k">安全管理中心</td><td class="k">AI 资产发现管理</td><td>AI 工具链 / 本地模型 / 智能体 / 浏览器 AI 扩展的快照与增量管理；不含通用资产台账</td><td>消费 Kafka AI 资产 topic；方寸 AIDR SDK 提供终端数据</td></tr>
+  <tr><td class="k">安全管理中心</td><td class="k">策略统一管理</td><td>检测 / 防护 / 采集策略版本化、分组差异化、生效回报和失败回滚</td><td>策略服务 → Agent Center WS 连接网关 → Supervisor；Rustinel 原子切换与 Wazuh 分组模型参考</td></tr>
+  <tr><td class="k">安全管理中心</td><td class="k">安全分析可视化</td><td>告警级 ATT&CK 映射、攻击链时序与运营看板；新增 <b>AI 智能体链路行为画像</b>，呈现 Agent—模型—工具—数据—响应动作的调用关系、时序和行为基线；完整原始事件检索与回放依赖全量遥测增强</td><td>Kafka 消费侧分析与时序画像服务；统一关联 agent_id / session_id / task_id / tool_call_id；AIDR AI 链路行为数据 + Rustinel 告警 + Wazuh ATT&CK 映射语料</td></tr>
+  <tr><td class="k">安全管理中心</td><td class="k">自动化响应</td><td>触发-执行-回报编排、进程 / 文件 / 终端隔离和 SOAR 集成预留</td><td>响应编排 → Agent Center WS 连接网关 → Supervisor → 响应动作插件；结果经数据面回传闭环</td></tr>
+</table>
+<div class="note"><b>AI 智能体链路行为画像分级：</b><b>默认模式</b>基于 AIDR AI 资产/行为数据和 Rustinel 安全告警形成告警级链路画像与关键节点时序；<b>增强模式</b>需要 AIDR/Agent Runtime 埋点提供统一 agent_id、session_id、task_id、tool_call_id，并按需结合 Rustinel 原始遥测 fork，才能支撑完整工具调用链、模型/数据访问关系、行为基线偏移与原始事件回放。不得把仅有关联告警的视图宣称为无损全链路追踪。</div>
+
+<h3 class="sub" id="s6-3">6.3 客户端插件池规划（AI 防护精简版）</h3>
+<table>
+  <tr><th style="width:190px">插件</th><th style="width:70px">优先级</th><th style="width:330px">职责</th><th>集成要点</th></tr>
+  <tr><td class="k">Rustinel 采集检测插件</td><td><span class="tag t-grn">P0*</span></td><td>安全行为采集 + Sigma / YARA / IOC 端点本地检测；Windows 全覆盖优先，Linux 分阶段，macOS 实验</td><td>默认 alerts.json ECS 告警→Supervisor；<b>telemetry.json / heartbeat.json 作为丢弃率与存活指标上报</b>；规则目录热加载（全坏拒绝、保留旧引擎）；可选 webhook 关闭；原始事件持续输出仅在需要全量检索时 fork 增强</td></tr>
+  <tr><td class="k">方寸 AIDR SDK 插件</td><td><span class="tag t-grn">P0</span></td><td>AI 资产发现、AI 行为采集与专项防护，为安全管理中心提供 AI 智能体链路行为画像数据</td><td>独立插件进程；采集、资产与告警对齐 Supervisor 收口契约；按能力提供 agent_id / session_id / task_id / tool_call_id 等关联字段，缺失字段由平台标记画像完整度而非伪造关联</td></tr>
+  <tr><td class="k">升级维护插件</td><td><span class="tag t-org">P1</span></td><td>增量升级 / 自愈 / 诊断打包</td><td>TUF 更新参考 orbit（MIT）</td></tr>
+  <tr><td class="k">杀毒 AV SDK 插件 <span class="tag t-blu">扩展</span></td><td><span class="tag t-blu">P2</span></td><td>病毒查杀：文件 / 内存扫描、定时全盘 + 按需扫描、实时防护</td><td><b>引擎与过滤驱动（minifilter）由 SDK 供应商维护</b>——延续「不自研内核驱动」原则；特征库升级走<b>独立大文件通道</b>（增量 + 断点续传 + 本地缓存），不占用日志数据面；CPU 密集 → 资源限额 + 错峰扫描；与 Rustinel 互补（AV 查杀已知威胁，Rustinel 检测行为 / 规则）；扫描触发可被自动化响应编排调用</td></tr>
+  <tr><td class="k">响应动作插件</td><td><span class="tag t-blu">P2</span></td><td>自动化响应的终端侧执行体</td><td>触发-执行-回报三段式；进程 / 文件隔离等处置动作</td></tr>
+  <tr><td class="k">自有扩展插件位</td><td><span class="tag t-pur">持续</span></td><td>自定义检测 / 数据脱敏 / 合规基线</td><td>契约位预留，同模式收口上报；架构图中与响应动作插件合并展示（进程承载合并、职责契约独立）</td></tr>
+</table>
+
+<div class="note"><b>插件池简化说明：</b>默认移除 osqueryd 与独立内核遥测插件。Rustinel 在端点内消费通用安全行为并本地产生告警，AIDR SDK 交付 AI 专项数据；默认无需把 Rustinel 全部原始事件上云。<b>Sysmon 仅为可选 Windows 数据源</b>，但需注意 Sysmon 依赖内核驱动且检测通常在 SIEM，仅在 Rustinel ETW 盲区确有必要时启用，由自研事件适配器消费。macOS /dev/bpf 与 Linux 低版本内核不得纳入默认生产承诺。</div>
+
+<div class="arch">
+<svg viewBox="0 0 1140 660" xmlns="http://www.w3.org/2000/svg" font-family="Microsoft YaHei,PingFang SC,sans-serif">
+  <defs>
+    <linearGradient id="gs2" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#1a2a55"/><stop offset="1" stop-color="#121c3a"/></linearGradient>
+    <linearGradient id="gc2" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#16224a"/><stop offset="1" stop-color="#101a33"/></linearGradient>
+  </defs>
+  <rect x="20" y="16" width="1100" height="180" rx="10" fill="url(#gs2)" stroke="#2e4573"/>
+  <text x="40" y="42" fill="#ff5c74" font-size="15" font-weight="bold">🔴 自研服务端管理平台（管理层 · 两中心）</text>
+  <rect x="40" y="56" width="510" height="128" rx="7" fill="#0f1830" stroke="#31d0ff"/>
+  <text x="295" y="79" fill="#31d0ff" font-size="12.5" text-anchor="middle" font-weight="bold">终端 Agent Center · 连接与数据入口</text>
+  <rect x="56" y="92" width="230" height="68" rx="5" fill="#121c33" stroke="#31d0ff"/>
+  <text x="171" y="116" fill="#dbe6f5" font-size="11.5" text-anchor="middle" font-weight="bold">WS 连接网关 · 控制面</text>
+  <text x="171" y="137" fill="#93a7c8" font-size="9.5" text-anchor="middle">注册 / 心跳 / 指令 / 插件管理</text>
+  <text x="171" y="152" fill="#5f7396" font-size="9" text-anchor="middle">连接路由 / 在线状态 / 跨节点推送</text>
+  <rect x="302" y="92" width="232" height="68" rx="5" fill="#121c33" stroke="#3ee08f"/>
+  <text x="418" y="116" fill="#dbe6f5" font-size="11" text-anchor="middle" font-weight="bold">无状态接入层 · 数据面</text>
+  <text x="418" y="137" fill="#93a7c8" font-size="9.5" text-anchor="middle">HTTP/2 + mTLS / 解压 / 幂等去重</text>
+  <text x="418" y="152" fill="#5f7396" font-size="9" text-anchor="middle">Kafka topic 分流 · 无状态线性扩容</text>
+  <text x="295" y="176" fill="#5f7396" font-size="9.5" text-anchor="middle">统一日志采集与终端集中管控 · 不承载重型安全分析</text>
+  <rect x="570" y="56" width="530" height="128" rx="7" fill="#141d44" stroke="#7c5cff"/>
+  <text x="835" y="79" fill="#a995ff" font-size="12.5" text-anchor="middle" font-weight="bold">安全管理中心 · 业务与运营中枢</text>
+  <rect x="586" y="92" width="118" height="68" rx="5" fill="#101d42" stroke="#2e4573"/>
+  <text x="645" y="117" fill="#dbe6f5" font-size="10.5" text-anchor="middle" font-weight="bold">AI 资产管理</text>
+  <text x="645" y="140" fill="#93a7c8" font-size="9" text-anchor="middle">快照 / 增量</text>
+  <rect x="714" y="92" width="118" height="68" rx="5" fill="#101d42" stroke="#2e4573"/>
+  <text x="773" y="117" fill="#dbe6f5" font-size="10.5" text-anchor="middle" font-weight="bold">策略统一管理</text>
+  <text x="773" y="140" fill="#93a7c8" font-size="9" text-anchor="middle">版本 / 灰度 / 回滚</text>
+  <rect x="842" y="92" width="118" height="68" rx="5" fill="#101d42" stroke="#2e4573"/>
+  <text x="901" y="113" fill="#dbe6f5" font-size="10.5" text-anchor="middle" font-weight="bold">安全分析可视化</text>
+  <text x="901" y="135" fill="#93a7c8" font-size="9" text-anchor="middle">ATT&CK 攻击链 / 看板</text>
+  <text x="901" y="152" fill="#a995ff" font-size="8.5" text-anchor="middle">AI 智能体链路行为画像</text>
+  <rect x="970" y="92" width="114" height="68" rx="5" fill="#101d42" stroke="#2e4573"/>
+  <text x="1027" y="117" fill="#dbe6f5" font-size="10.5" text-anchor="middle" font-weight="bold">自动化响应</text>
+  <text x="1027" y="140" fill="#93a7c8" font-size="9" text-anchor="middle">编排 / 处置闭环</text>
+  <text x="835" y="176" fill="#5f7396" font-size="9.5" text-anchor="middle">Kafka 消费分析 · 策略与响应控制接口 → 终端 Agent Center</text>
+  <line x1="550" y1="120" x2="570" y2="120" stroke="#7c5cff" stroke-width="2"/>
+  <line x1="190" y1="196" x2="190" y2="236" stroke="#31d0ff" stroke-width="2" stroke-dasharray="6 4"/>
+  <line x1="418" y1="196" x2="418" y2="236" stroke="#3ee08f" stroke-width="2" stroke-dasharray="6 4"/>
+  <rect x="130" y="206" width="120" height="24" rx="12" fill="#0b1220" stroke="#31d0ff"/>
+  <text x="190" y="222" fill="#31d0ff" font-size="11" text-anchor="middle">控制面 · ws</text>
+  <rect x="343" y="206" width="150" height="24" rx="12" fill="#0b1220" stroke="#3ee08f"/>
+  <text x="418" y="222" fill="#3ee08f" font-size="11" text-anchor="middle">数据面 · HTTP/2 批量</text>
+  <rect x="20" y="236" width="1100" height="400" rx="10" fill="url(#gc2)" stroke="#2e4573"/>
+  <text x="40" y="264" fill="#ffd257" font-size="15" font-weight="bold">🟡 终端侧 · 自研 Supervisor 主程序 + 插件进程池（执行层）</text>
+  <rect x="40" y="280" width="330" height="330" rx="8" fill="#0f1d3d" stroke="#31d0ff" stroke-width="1.5"/>
+  <text x="205" y="308" fill="#eaf3ff" font-size="14" text-anchor="middle" font-weight="bold">自研 Supervisor 主程序</text>
+  <rect x="60" y="322" width="290" height="44" rx="5" fill="#121c33" stroke="#2e4573"/>
+  <text x="205" y="350" fill="#dbe6f5" font-size="12" text-anchor="middle">ws 客户端（注册/心跳/指令/插件管理）</text>
+  <rect x="60" y="374" width="290" height="44" rx="5" fill="#121c33" stroke="#2e4573"/>
+  <text x="205" y="402" fill="#dbe6f5" font-size="12" text-anchor="middle">本地 WAL 队列 · 幂等序号 · 断网续传</text>
+  <rect x="60" y="426" width="290" height="44" rx="5" fill="#121c33" stroke="#2e4573"/>
+  <text x="205" y="454" fill="#dbe6f5" font-size="12" text-anchor="middle">zstd 压缩 · 1~4MB 批量 · HTTP/2+mTLS</text>
+  <rect x="60" y="478" width="290" height="44" rx="5" fill="#121c33" stroke="#2e4573"/>
+  <text x="205" y="506" fill="#dbe6f5" font-size="12" text-anchor="middle">插件生命周期管理 · IPC 消息总线</text>
+  <rect x="60" y="530" width="290" height="44" rx="5" fill="#0d2a4a" stroke="#1d5f8a"/>
+  <text x="205" y="548" fill="#5fb9e8" font-size="11" text-anchor="middle">数据面统一收口</text>
+  <text x="205" y="566" fill="#5fb9e8" font-size="11" text-anchor="middle">mTLS / WAL / 压缩仅此一处</text>
+  <text x="205" y="592" fill="#ffb03a" font-size="10" text-anchor="middle">Elkeid Agent 机制映射（设计级 · 零代码）</text>
+  <rect x="382" y="280" width="718" height="330" rx="8" fill="#0e1a36" stroke="#2e4573" stroke-dasharray="4 3"/>
+  <text x="741" y="306" fill="#ffd257" font-size="13" text-anchor="middle" font-weight="bold">插件进程池（独立进程 · 本地文件/IPC 交付 · Supervisor 收口）</text>
+  <rect x="399" y="316" width="216" height="100" rx="6" fill="#101d42" stroke="#3ee08f" stroke-width="1.5"/>
+  <text x="507" y="340" fill="#3ee08f" font-size="12" text-anchor="middle" font-weight="bold">Rustinel 主引擎（P0）</text>
+  <text x="507" y="360" fill="#93a7c8" font-size="10" text-anchor="middle">三端行为采集 + 本地检测</text>
+  <text x="507" y="377" fill="#93a7c8" font-size="10" text-anchor="middle">默认告警→ECS 文件</text>
+  <text x="507" y="394" fill="#5f7396" font-size="10" text-anchor="middle">规则热加载 · fork 兜底</text>
+  <rect x="633" y="316" width="216" height="100" rx="6" fill="#0e1a36" stroke="#2e4573" stroke-dasharray="3 3"/>
+  <text x="741" y="340" fill="#5f7396" font-size="11.5" text-anchor="middle" font-weight="bold">三端采集（引擎内部）</text>
+  <text x="741" y="360" fill="#93a7c8" font-size="10" text-anchor="middle">Windows ETW · 无驱动</text>
+  <text x="741" y="377" fill="#93a7c8" font-size="10" text-anchor="middle">Linux eBPF≥5.8</text>
+  <text x="741" y="394" fill="#5f7396" font-size="10" text-anchor="middle">macOS ES · bpf 实验</text>
+  <rect x="867" y="316" width="216" height="100" rx="6" fill="#1a1428" stroke="#7c5cff" stroke-width="1.5"/>
+  <text x="975" y="340" fill="#c9b8ff" font-size="12" text-anchor="middle" font-weight="bold">🟣 AV 适配进程</text>
+  <text x="975" y="358" fill="#c9b8ff" font-size="10" text-anchor="middle">（安天引擎 · 独立进程接入）</text>
+  <text x="975" y="375" fill="#93a7c8" font-size="10" text-anchor="middle">病毒查杀 / 实时防护 · ZIP 验签安装</text>
+  <text x="975" y="392" fill="#5f7396" font-size="10" text-anchor="middle">特征库独立通道 · 宿主不加载 SDK</text>
+  <rect x="399" y="428" width="216" height="100" rx="6" fill="#1a1428" stroke="#7c5cff" stroke-width="1.5"/>
+  <text x="507" y="452" fill="#c9b8ff" font-size="12" text-anchor="middle" font-weight="bold">🟣 AIDR 适配进程</text>
+  <text x="507" y="472" fill="#93a7c8" font-size="10" text-anchor="middle">方寸 SDK · AI 资产发现</text>
+  <text x="507" y="489" fill="#93a7c8" font-size="10" text-anchor="middle">AI 行为防护 · 关联键</text>
+  <text x="507" y="506" fill="#5f7396" font-size="10" text-anchor="middle">plugin_config 声明式接入</text>
+  <rect x="633" y="428" width="216" height="100" rx="6" fill="#101d42" stroke="#31d0ff" stroke-width="1.5"/>
+  <text x="741" y="452" fill="#31d0ff" font-size="12" text-anchor="middle" font-weight="bold">响应动作与自有扩展插件</text>
+  <text x="741" y="472" fill="#93a7c8" font-size="10" text-anchor="middle">触发-执行-回报闭环 · dry-run + 审计</text>
+  <text x="741" y="489" fill="#93a7c8" font-size="10" text-anchor="middle">进程/文件隔离处置 · 自定义检测/脱敏</text>
+  <text x="741" y="506" fill="#5f7396" font-size="10" text-anchor="middle">合规基线扩展 · 契约位持续预留</text>
+  <rect x="867" y="428" width="216" height="100" rx="6" fill="#101d42" stroke="#2e4573"/>
+  <text x="975" y="452" fill="#93a7c8" font-size="12" text-anchor="middle" font-weight="bold">升级维护插件</text>
+  <text x="975" y="472" fill="#93a7c8" font-size="10" text-anchor="middle">增量升级 / 自愈 / 诊断</text>
+  <text x="975" y="506" fill="#5f7396" font-size="10" text-anchor="middle">TUF 更新参考 orbit</text>
+  <text x="741" y="548" fill="#5f7396" font-size="10.5" text-anchor="middle">统一交付契约：插件只产生本地数据（文件/IPC），传输职责全部收口在主程序——mTLS、WAL、zstd、幂等续传仅实现一次</text>
+  <text x="741" y="568" fill="#5f7396" font-size="10.5" text-anchor="middle">AV 特征库升级走独立大文件通道（增量+断点续传+本地缓存），与日志数据面隔离；扫描任务可被响应编排按需触发</text>
+  <text x="741" y="590" fill="#a995ff" font-size="10.5" text-anchor="middle">🟣 第三方 SDK 一律独立适配进程接入（宿主不加载 SDK）· GUI 状态卡融合与指令通道见《统一客户端第三方插件 SDK 集成设计方案 v1.2》</text>
+  <text x="570" y="612" fill="#5f7396" font-size="10.5" text-anchor="middle">平台侧两中心 + 精简插件池 + 双平面通道——Agent Center 负责连接与接入，安全管理中心负责分析与响应；Rustinel 主采通用行为，AIDR 主采 AI 专项</text>
+</svg>
+</div>
+
+<h3 class="sub" id="s6-4">6.4 Supervisor 参考 Elkeid Agent 插件机制（设计级蓝本 · 零代码引入）</h3>
+<div class="secdesc">Elkeid Agent 与目标 Supervisor 都是“宿主 Agent + 多插件子进程”，在生命周期与版本管理上最同构。参考其职责划分和状态流转，但 IPC 契约、状态机、数据结构与代码全部自研。</div>
+<table>
+  <tr><th style="width:220px">Elkeid 可参照机制</th><th style="width:390px">Supervisor 自研落地</th><th>关键控制点</th></tr>
+  <tr><td class="k">Agent 维护插件进程表</td><td>建立 Plugin Registry：plugin_id、pid、版本、能力位、状态、配置版本、重启次数、资源用量、最近心跳</td><td>注册表是唯一事实源；进程退出与心跳失联都必须驱动状态迁移</td></tr>
+  <tr><td class="k">插件启动、注册与能力声明</td><td>Supervisor 拉起进程 → 本地握手 → 校验 plugin_id/版本/协议/能力 → 注册路由 → READY</td><td>未通过签名、兼容性和能力校验的插件不得接收策略或数据</td></tr>
+  <tr><td class="k">注册—心跳—重启闭环</td><td>状态机：INSTALLED → STARTING → READY / DEGRADED → RESTARTING；另设 UPGRADING、ROLLING_BACK、STOPPED、FAILED</td><td>心跳超时先判定 DEGRADED；指数退避 + 最大重启窗口 + 熔断，避免崩溃循环刷爆 CPU</td></tr>
+  <tr><td class="k">Unix Socket / Protobuf 本地通信</td><td>Linux/macOS Unix Socket、Windows Named Pipe；可使用 Protobuf 等开放序列化库，但消息 IDL 自定义，不复制 Elkeid proto</td><td>统一消息头：protocol_version、plugin_id、message_type、correlation_id、revision、payload；支持请求/响应、事件、流式背压与超时</td></tr>
+  <tr><td class="k">AgentCenter 配置与任务下发</td><td>安全管理中心策略/任务 → 终端 Agent Center WS 连接网关 → Supervisor → 本地 IPC；按 config_revision / task_id 返回 received、applied、failed，不让插件直连控制面</td><td>策略原子应用、失败回滚、幂等 task_id、离线任务过期和结果补报</td></tr>
+  <tr><td class="k">插件版本由服务端控制</td><td>版本清单包含 semver、os/arch、min_supervisor_version、config_schema_version、SHA-256、签名、依赖与回滚版本</td><td>平台维护兼容矩阵；Supervisor 拒绝不兼容升级，禁止插件自行静默换版</td></tr>
+  <tr><td class="k">插件升级与灰度发布</td><td>升级维护插件负责下载；Supervisor 负责验签、停启、A/B 目录原子切换、健康检查和回滚；按终端分组/比例灰度</td><td>不得覆盖运行中二进制；旧版本保留至健康观察期结束；回滚后上报原因并冻结自动重试</td></tr>
+  <tr><td class="k">资源监控与异常治理</td><td>心跳携带 CPU/RSS/句柄/队列水位/丢弃计数；限额超限进入 DEGRADED，按策略重启或降级</td><td>区分业务故障、资源超限和 IPC 故障；所有状态变化形成审计事件</td></tr>
+  <tr><td class="k">Agent 数据汇聚上送</td><td><b>不复制 Elkeid gRPC 直发路径</b>；插件仅本地文件/IPC 交付，Supervisor 统一 WAL、HTTP/2、mTLS 和 Kafka topic 映射</td><td>借鉴生命周期，不继承其私有服务端耦合和 AGPL 数据面</td></tr>
+</table>
+<div class="note grn"><b>参考分工：</b><b>Elkeid Agent</b>＝生命周期、状态机、版本和灰度的主要设计蓝本（AGPL，零代码）；<b>osquery</b>＝Thrift 握手、能力注册、失联重注册等 Apache-2.0 代码级参考；<b>Fleet orbit</b>＝签名更新与包管理的 MIT 工程参考。三者只取各自最合适的部分，最终契约和实现归自研 Supervisor 所有。</div>
+
+<!-- ================= 07 借鉴分析 ================= -->
+<h2 class="sec" id="sec07"><span class="no">07</span>候选插件技术借鉴分析</h2>
+<div class="secdesc">自研 Supervisor + 插件进程池的实现，可从各候选框架「借鉴什么、以什么方式借鉴」——按许可约束分四个借鉴层级。</div>
+
+<h3 class="sub" id="s7-0">7.0 借鉴层级与纪律</h3>
+<table>
+  <tr><th style="width:210px">借鉴层级</th><th>允许的操作</th><th style="width:280px">适用框架</th></tr>
+  <tr><td class="k">代码级（Apache-2.0 / MIT）</td><td class="rec">阅读、移植、改造源码片段进自研代码（保留 LICENSE/NOTICE 声明）</td><td>osquery、Rustinel、Fleet orbit</td></tr>
+  <tr><td class="k">设计级（AGPL / GPL）</td><td class="mid">学习机制与协议设计，自研重新实现——<b>零代码引入</b>是硬约束</td><td>Elkeid、Velociraptor、Wazuh（架构面）</td></tr>
+  <tr><td class="k">语料级</td><td class="mid">规则 / 配置 / 映射表的复用与格式转换</td><td>Wazuh（规则与 ATT&CK 映射）</td></tr>
+  <tr><td class="k">反面教材</td><td class="bad">风险与教训规避</td><td>OpenEDR</td></tr>
+</table>
+
+<h3 class="sub" id="s7-1">7.1 osquery：插件契约与守护机制（代码级）</h3>
+<table>
+  <tr><th style="width:260px">可借鉴机制</th><th>对自研插件体系的价值</th></tr>
+  <tr><td class="k">Thrift IDL 扩展 API（registerExtension 握手）</td><td>自研插件契约协议栈直接以 Thrift 为基座——跨语言、IDL 先行、三端通道类型齐备</td></tr>
+  <tr><td class="k">Registry 类型化插件位</td><td>插件按「类型位」注册（采集/检测/策略/指令四类），Supervisor 按位路由数据与策略</td></tr>
+  <tr><td class="k">autoload 子进程 + Watchdog</td><td>插件以子进程拉起并受性能/存活监控（超限自动重启）——看门狗语义可直接移植</td></tr>
+  <tr><td class="k">失联自动注销 / 恢复重注册</td><td>插件崩溃恢复语义：通信断开注销能力位、进程恢复后重新注册——主程序无需重启</td></tr>
+  <tr><td class="k">扩展文件权限要求（root 属主 / icacls）</td><td>插件二进制防篡改基线：目录权限收敛 + 完整性校验</td></tr>
+  <tr><td class="k">多 logger 并联</td><td>数据多路分发：本地调试输出与主上报通道并存——现场排障能力</td></tr>
+  <tr><td class="k">config_refresh / logger 周期参数化</td><td>策略拉取与数据上送节奏解耦、参数化——海量终端错峰（jitter）设计的基础</td></tr>
+</table>
+
+<h3 class="sub" id="s7-2">7.2 Rustinel：策略热更新与可观测（代码级）</h3>
+<table>
+  <tr><th style="width:260px">可借鉴机制</th><th>对自研插件体系的价值</th></tr>
+  <tr><td class="k">坏规则回滚热加载</td><td>策略加载失败保持旧引擎运行——自研策略下发必须内建「原子切换 + 失败回滚」，杜绝一次坏策略瘫痪全网终端</td></tr>
+  <tr><td class="k">录制回放（record & replay）</td><td>插件规则升级前的回归测试基建，策略 CI 的核心用例</td></tr>
+  <tr><td class="k">sigma doctor / doctor 诊断</td><td>规则可触发性审计 + 运行时丢包观测——插件健康自检协议（指标化上报队列水位与丢弃计数）</td></tr>
+  <tr><td class="k">YARA / 哈希后台执行与缓存</td><td>重扫描不阻塞 Sigma 热路径；按文件身份去重，适合作为 AV 与检测插件的资源隔离参考</td></tr>
+  <tr><td class="k">Sigma 加载期预筛选与预编译</td><td>按 category/product/service 过滤规则，启动和热加载时完成条件转译与编译，避免每个事件重复解析</td></tr>
+  <tr><td class="k">ETW 关键字与网络噪声抑制</td><td>在采集会话与路由层提前过滤，网络连接可选聚合——自研采集策略应优先源头降噪，而非等平台侧丢弃</td></tr>
+  <tr><td class="k">告警阶段上下文富化</td><td>父进程、SID、PE、DNS 等上下文仅附加到告警而非每个事件，降低热路径开销；原始遥测增强时需另行评估全量富化成本</td></tr>
+  <tr><td class="k">ECS 9.4.0 字段归一</td><td>全插件统一数据模型标准——Kafka topic 与分析侧零转换消费</td></tr>
+  <tr><td class="k">六条有界通道 + 逐通道丢弃计数</td><td>源码把「丢弃」做成可度量对象而非隐含行为：每条内部通道独立计数、按事件类别统计、30s 快照落盘。<b>自研插件契约必须要求插件暴露自己的通道级丢弃指标</b>，禁止「静默丢弃」——这是端到端「零丢失」承诺唯一可验证的基础</td></tr>
+  <tr><td class="k">告警字节预算与降级顺序</td><td>64MB 字节预算下「丢文件副本、保摄入与 webhook」——给出了<b>输出侧降级优先级</b>的现成范式：先牺牲可重建的本地副本，再牺牲投递，绝不阻塞检测热路径</td></tr>
+  <tr><td class="k">webhook 稳定投递 ID + HMAC 签名</td><td><code>x-rustinel-delivery</code> 在重试期保持不变 → 自研上传器幂等键设计参考；<code>x-rustinel-signature = sha256=HMAC(secret, "&lt;timestamp&gt;.&lt;body&gt;")</code> → 平台侧验签与防重放可直接对齐；<code>Retry-After</code> 上限钳制 → 退避策略不应无限增长</td></tr>
+  <tr><td class="k">ETW 双会话分级 flush</td><td>主会话 20ms 可让步，进程会话 5ms <b>在队列压力下仍保持 flush</b>——「关键事件优先保时效、非关键事件可让步」的分级策略，可直接移植到自研采集插件的资源竞争处理</td></tr>
+  <tr><td class="k">规则全坏拒绝重载 + ArcSwap</td><td>「找到文件但全部编译失败 → 拒绝本次重载并保留旧引擎」是策略下发的正确失败语义；<code>ArcSwap</code> 提供读侧无锁的原子切换实现范式。自研策略下发必须复制这两条，而不是「加载失败即清空」</td></tr>
+  <tr><td class="k">规则包 SHA-256 + minisign 验签</td><td><code>rules install / update</code> 双校验（摘要 + 签名）→ 自研策略包与插件包的签名链设计基线；配合「拒绝符号链接 + 受限文件权限」，构成终端侧最小的供应链防线</td></tr>
+  <tr><td class="k">去重 rollup 的 event.count 语义</td><td>首条即时发出、rollup 携带被抑制次数 → 平台侧统计真实事件量必须 <code>sum(event.count 缺失记 1)</code>，否则告警量被严重低估；该口径应写入自研 schema 规范</td></tr>
+</table>
+
+<h3 class="sub" id="s7-3">7.3 Elkeid：子进程插件管理模型（设计级）</h3>
+<table>
+  <tr><th style="width:260px">可借鉴机制</th><th>对自研插件体系的价值</th></tr>
+  <tr><td class="k">插件注册-心跳-重启闭环</td><td>Agent 维护插件进程表（状态/版本/资源占用）——Supervisor 进程管理的核心循环参照</td></tr>
+  <tr><td class="k">控制通道与数据通道分离</td><td>与自研双平面设计互为印证</td></tr>
+  <tr><td class="k">协议与实现解耦（多语言插件）</td><td>proto/IDL 定义完备后插件可用任意语言实现——未来 AI 防护插件的语言自由度</td></tr>
+  <tr><td class="k">AgentCenter 限流 + 服务发现 + 负载均衡</td><td>终端 Agent Center 的 WS 连接网关集群设计参考：最大连接数保护、节点注册发现、连接迁移</td></tr>
+  <tr><td class="k">插件版本由服务端下发控制</td><td>插件独立版本管理 + 灰度分组升级 + 健康检查 + 回滚；Supervisor 自研版本清单、兼容矩阵和 A/B 原子切换，完整映射见第 6.4 节</td></tr>
+</table>
+
+<h3 class="sub" id="s7-4">7.4 Velociraptor：工件即策略与离线采集（设计级）</h3>
+<table>
+  <tr><th style="width:260px">可借鉴机制</th><th>对自研插件体系的价值</th></tr>
+  <tr><td class="k">Artifact「工件即策略」</td><td>采集-检测逻辑打成数据包热分发，客户端零改动——自研策略应作为<b>数据包而非代码</b>下发，与插件二进制解耦演进</td></tr>
+  <tr><td class="k">Hunt 全网并发+结果聚合</td><td>平台侧「全网诊断/普查指令」设计范式——对 AI 资产普查场景直接适用</td></tr>
+  <tr><td class="k">Offline Collector 离线采集包</td><td>隔离网/分支终端的一次性取证采集方案</td></tr>
+  <tr><td class="k">多组织多租户</td><td>平台侧多租户隔离预留（SaaS 化演进）</td></tr>
+</table>
+
+<h3 class="sub" id="s7-5">7.5 Wazuh：响应编排与规则分层（语料级）</h3>
+<table>
+  <tr><th style="width:260px">可借鉴机制</th><th>对自研插件体系的价值</th></tr>
+  <tr><td class="k">Active Response 三段式闭环</td><td>事件触发→响应动作执行→结果回传——自研「响应动作框架」的触发-执行-回报范式（响应动作可封装为受管插件）</td></tr>
+  <tr><td class="k">decoder → rule → AR 分层规则体系</td><td>Kafka 消费侧检测规则的分层语法与 MITRE ATT&CK 标签映射语料</td></tr>
+  <tr><td class="k">agent group 集中配置</td><td>按终端分组差异化下发策略的配置管理模型</td></tr>
+  <tr><td class="k">规则级合规标签</td><td>规则在 <code>&lt;group&gt;</code> 中直接携带 <code>pci_dss_10.2.5</code> 等合规项编号——<b>把合规映射做在规则定义里而非报表里</b>，自研告警 schema 应预留合规标签字段，避免后期靠人工对表</td></tr>
+</table>
+
+<h3 class="sub" id="s7-6">7.6 Sysmon / OpenEDR：配置驱动与反面教训</h3>
+<table>
+  <tr><th style="width:260px">机制 / 教训</th><th>对自研插件体系的价值</th></tr>
+  <tr><td class="k">Sysmon：配置清单驱动采集范围</td><td>采集项开关完全配置化，事件流稳定且社区配置丰富；但依赖内核驱动、仅 Windows，检测通常在 SIEM 而非传感器，本地实时检测仍由 Rustinel 承担</td></tr>
+  <tr><td class="k">OpenEDR：驱动级自研的维护成本</td><td class="bad">反面教材：内核驱动需持续适配多版本内核、签名、蓝屏风险——印证「不自研内核驱动，优先复用 Rustinel ETW/eBPF/ES，Sysmon 仅可选补盲」的判断</td></tr>
+  <tr><td class="k">OpenEDR：闭源单维护方组件风险</td><td class="bad">反面教材：引入停滞的单维护方组件=长期无人修 CVE——印证「活跃度」权重与 Rustinel fork 兜底的必要性</td></tr>
+</table>
+
+<h3 class="sub" id="s7-7">7.7 汇总：自研插件契约设计要点（借鉴来源映射）</h3>
+<table>
+  <tr><th style="width:200px">契约项</th><th style="width:230px">借鉴来源</th><th>设计要点</th></tr>
+  <tr><td class="k">注册握手与能力声明</td><td>osquery Registry / Elkeid 插件注册</td><td>插件启动→声明类型位+能力清单→Supervisor 注册路由</td></tr>
+  <tr><td class="k">心跳与资源限额</td><td>Elkeid 心跳 / osquery Watchdog</td><td>双向心跳 + CPU/内存限额 + 超限自动重启</td></tr>
+  <tr><td class="k">崩溃恢复</td><td>osquery 失联注销/重注册</td><td>崩溃→自动拉起→快速恢复；升级失败→回滚上一版本二进制</td></tr>
+  <tr><td class="k">策略原子下发 + 回滚</td><td class="rec">Rustinel 坏规则回滚</td><td>策略包带版本号，加载失败保持旧版，生效状态回报平台</td></tr>
+  <tr><td class="k">统一数据 schema</td><td>Rustinel ECS</td><td>默认告警统一 ECS 字段 + 来源声明；可选原始遥测复用同一模型，但单独定义 topic、丢弃和资源预算</td></tr>
+  <tr><td class="k">背压与分级丢弃</td><td>osquery Watchdog / Rustinel doctor</td><td>区分传感器检测前丢弃与落盘后传输：前者必须计数、告警并做容量治理；后者由 Supervisor WAL 保证续传，禁止笼统承诺“全程零丢失”</td></tr>
+  <tr><td class="k">防篡改基线</td><td>osquery 扩展权限要求</td><td>插件目录权限收敛 + 数字签名校验 + 完整性哈希</td></tr>
+  <tr><td class="k">策略即数据包</td><td>Velociraptor Artifact</td><td>查询/规则以带版本的数据包热分发，与插件二进制解耦升级</td></tr>
+  <tr><td class="k">健康自检协议</td><td>Rustinel doctor</td><td>队列水位/丢包/规则命中指标经 IPC 汇聚上报</td></tr>
+  <tr><td class="k">规则回归测试</td><td>Rustinel 录制回放</td><td>策略/插件升级前回放验证（CI 门禁）</td></tr>
+  <tr><td class="k">响应动作闭环</td><td>Wazuh Active Response</td><td>触发-执行-回报三段式，响应动作插件化受管</td></tr>
+  <tr><td class="k">离线终端补盲</td><td>Velociraptor Offline Collector</td><td>隔离网一次性采集包（应急场景）</td></tr>
+</table>
+
+<div class="note"><b>借鉴纪律（与第 1.3 节前置门禁及第 09 章详细边界联动）：</b>代码级借鉴仅限 Apache-2.0/MIT 组件（osquery、Rustinel、orbit），移植时保留 NOTICE 声明；Elkeid / Velociraptor / Wazuh 一律「看设计、写自己的代码」——同一机制两种实现，合规边界即工程纪律。</div>
+
+<!-- ================= 08 评分 ================= -->
+<h2 class="sec" id="sec08"><span class="no">08</span>评分矩阵与排名</h2>
+<div class="secdesc">按第 1.2 节最新权重加权评分（各项 1~5 分）。行为遥测与检测提升至 35%，通用资产与周期查询不再计分；Supervisor 可整体纳管单体进程，因此内部插件机制权重降至 5%。</div>
+<table>
+  <tr><th style="width:140px">候选</th><th>数据面<br><span class="small">20%</span></th><th>控制面<br><span class="small">10%</span></th><th>插件进程<br><span class="small">5%</span></th><th>跨平台<br><span class="small">15%</span></th><th>遥测检测<br><span class="small">35%</span></th><th>许可<br><span class="small">10%</span></th><th>活跃<br><span class="small">5%</span></th><th>总分</th></tr>
+  <tr><td class="k">Rustinel</td><td class="rec">4</td><td>3</td><td class="bad">2</td><td>3</td><td class="rec">5</td><td class="rec">5</td><td>3</td><td><b class="rec">4.05</b></td></tr>
+  <tr><td class="k">osquery（方案排除）</td><td class="rec">5</td><td>4</td><td class="rec">5</td><td class="rec">5</td><td class="bad">2</td><td class="rec">5</td><td class="rec">5</td><td><b>3.85</b></td></tr>
+  <tr><td class="k">Velociraptor</td><td class="bad">2</td><td class="bad">2</td><td class="bad">2</td><td class="rec">5</td><td class="rec">5</td><td class="bad">2</td><td class="rec">5</td><td><b>3.65</b></td></tr>
+  <tr><td class="k">Elkeid</td><td class="bad">2</td><td>3</td><td class="rec">5</td><td class="bad">2</td><td class="rec">5</td><td class="bad">2</td><td>3</td><td><b>3.35</b></td></tr>
+  <tr><td class="k">Wazuh</td><td class="bad">1</td><td class="bad">2</td><td class="bad">1</td><td>4</td><td>3</td><td class="bad">2</td><td class="rec">5</td><td><b class="bad">2.55</b></td></tr>
+  <tr><td class="k">OpenEDR</td><td class="bad">2</td><td class="bad">1</td><td class="bad">2</td><td class="bad">1</td><td>3</td><td class="bad">1</td><td class="bad">1</td><td><b class="bad">1.95</b></td></tr>
+</table>
+<div class="note"><b>评分排序与方案准入分离：</b>Rustinel 4.05 第一，osquery 3.85 第二，Velociraptor 3.65 第三。osquery 的高分来自数据面 5、控制面 4、插件进程 5、跨平台 5、许可 5、活跃 5，反映其接口与工程成熟度；行为遥测与检测仅 2 分，且本质是状态 SQL 查询工具，因此<b>参与评分排序但最终方案不采用</b>。Rustinel 仍是最终默认终端运行时主选。评分用于横向比较，许可与 Agent 适配门禁决定能否入选。<br><b>源码校准对分数的影响：</b>Rustinel 1.11.0 源码审计<b>未调整 4.05 分</b>——源码确认的丢弃可观测性、全坏规则拒绝重载、规则包 SHA-256 + minisign 验签，均已包含在原「数据面 4 分 / 控制面 3 分」的评分口径内，属佐证而非加分项；<code>panic = "abort"</code> 与 macOS <code>kill()</code> 的 PID 复用竞态作为新增风险项进入第 11 章，工作量口径同步微调至 36~52 人周。<br><b>平台型候选的分数解读（Wazuh 2.55）：</b>Wazuh 的低分<b>不是能力弱</b>，而是七个维度里有五个在衡量「终端 Agent 可对接性」，而它的价值集中在被自研平台替代的 Manager / Indexer / Dashboard 侧。若换成「平台完整度」或「合规覆盖」口径，它会显著上升——但本项目平台侧自研，该口径不适用。这也是为什么它在 1.4 门禁被判「完整平台 ≠ 实时终端 Agent」，与 osquery 的「SQL 工具 ≠ EDR Agent」同属类型不匹配，只是方向相反（一个太薄、一个太重）。</div>
+
+<!-- ================= 09 许可证 ================= -->
+<h2 class="sec" id="sec09"><span class="no">09</span>许可证传染边界与分发合规（详细）</h2>
+<div class="secdesc">商用准入结论已前置至第 1.3 节；本章只分析收口型架构下的衍生/聚合边界、独立实现纪律和发布分发清单，避免重复列示。</div>
+
+<h3 class="sub" id="s9-1">9.1 收口型架构下的传染边界分析</h3>
+<table>
+  <tr><th style="width:230px">边界场景</th><th>合规判定</th></tr>
+  <tr><td class="k">聚合作品边界（GPL 判定核心）</td><td class="rec">默认主链路仅引入 Apache-2.0 的 Rustinel；其以独立进程 + 文件/IPC 与 Supervisor 协作，边界清晰。AIDR 与 AV SDK 按各自商业许可执行，不与 GPL/AGPL 组件链接或共包</td></tr>
+  <tr><td class="k">修改与定制边界</td><td class="mid">Rustinel 原始遥测输出若需 fork 增强，Apache-2.0 允许闭源衍生，但须保留 LICENSE/NOTICE、版权声明与修改说明；规则包与 Supervisor 自研代码保持独立知识产权</td></tr>
+  <tr><td class="k">Elkeid 设计级借鉴边界</td><td class="mid">Supervisor 只借鉴公开架构语义，使用自研状态机、IDL 与数据结构；禁止复制源码、proto、构建脚本或引入仓库依赖。保留架构决策记录、独立实现评审与依赖扫描结果，证明“同机制、不同实现”</td></tr>
+  <tr><td class="k">服务端网络条款</td><td class="rec">自研平台（终端 Agent Center 的 WS 连接网关/无状态接入层、Kafka、安全管理中心分析服务）<b>零引入 AGPL 代码</b>——AGPL 第 13 条无从触发；Velociraptor 取证工具如部署，须物理隔离于商业链路</td></tr>
+  <tr><td class="k">分发合规清单（产品发布前）</td><td class="mid">① 随安装包附带 Rustinel LICENSE / NOTICE，fork 时记录修改说明；② 产品文档声明第三方组件清单；③ 可选 Sysmon 随包分发时附微软 Sysinternals EULA；④ osquery 不进入运行时和安装包，仅移植局部 Apache-2.0 参考代码时保留对应许可与 NOTICE；⑤ 组件升级同步更新声明</td></tr>
+</table>
+
+<div class="note risk"><b>合规红线总结：</b>默认主链路（Supervisor + Rustinel + AIDR SDK）不含 GPL/AGPL 组件；Rustinel 采用 Apache-2.0，AIDR/AV SDK 按商业合同核验分发权，Sysmon 仅可选并遵循 EULA。Elkeid、Velociraptor、Wazuh 均零代码进入主链路，OpenEDR 排除。</div>
+
+<!-- ================= 10 终局定位 ================= -->
+<h2 class="sec" id="sec10"><span class="no">10</span>终局定位与选型理由</h2>
+<table>
+  <tr><th style="width:130px">框架</th><th style="width:110px">终局定位</th><th style="width:100px">评分</th><th>在双平面架构中的角色（终局）</th></tr>
+  <tr><td class="k">Rustinel</td><td class="rec">P0 行为采集与本地检测</td><td>4.05</td><td>Windows 主选、Linux 分阶段、macOS 实验；本地 Sigma/YARA/IOC，默认 alerts.json 告警落盘并由 Supervisor 收口；全量原始事件输出为可选 fork 增强，不作为官方默认能力</td></tr>
+  <tr><td class="k">osquery</td><td class="bad">评分保留 / 最终方案排除</td><td>3.85</td><td>技术评分第二，反映接口、跨平台和工程机制优势；但端点状态 SQL 查询引擎无本地实时检测与响应闭环，不进入运行时、安装包或可选 Agent 清单，仅保留 Thrift/Registry/Watchdog 局部代码级参考</td></tr>
+  <tr><td class="k">Velociraptor</td><td class="bad">独立取证工具</td><td>3.65</td><td>平台侧独立部署（与商业链路隔离），重大事件按需深度取证，结果导出进自研分析平台</td></tr>
+  <tr><td class="k">Elkeid</td><td class="mid">Supervisor 设计蓝本</td><td>3.35</td><td>零代码引入：重点参考 Agent 插件进程表、注册—心跳—重启、版本下发与灰度；自研 IPC 状态机和 A/B 回滚，gRPC 数据面不采用</td></tr>
+  <tr><td class="k">Wazuh</td><td class="bad">规则语料</td><td>2.55</td><td>零代码引入：规则/解码器生态与 MITRE ATT&CK 映射作为平台侧分析规则设计语料</td></tr>
+  <tr><td class="k">OpenEDR</td><td class="bad">排除</td><td>1.95</td><td>无引入价值：许可、维护、跨平台与数据模型均不满足</td></tr>
+</table>
+
+<h3 class="sub" id="s10-1">10.1 选型理由（三条主轴）</h3>
+<ul class="cl">
+  <li><b>主轴一 · Agent 类型匹配优先：</b>osquery 的核心是端点状态 SQL 查询，适合资产、配置与合规，不是实时行为检测和响应 Agent；保留 3.85 分是为了客观呈现接口与工程优势，但高分不能弥补产品类型不匹配，因此最终方案不采用。</li>
+  <li><b>主轴二 · 单引擎采集检测闭环：</b>Rustinel 同时具备原生行为采集、Sigma/YARA/IOC 端点检测和 ECS 告警落盘；异步管线、规则预编译、源头降噪和后台扫描适合高负载终端，与 Supervisor 收口组合后可替代 osquery 采集 + 独立检测引擎路线。</li>
+  <li><b>主轴三 · AI 专项职责独立：</b>AIDR SDK 负责 AI 资产与行为防护，不承担通用终端行为遥测；AV 负责已知威胁查杀，响应插件负责处置，避免职责混叠。<b>v4.0：两者与统一客户端的集成形态已定型为独立适配进程（宿主不加载 SDK），见《统一客户端第三方插件 SDK 集成设计方案 v1.2》</b>——含 plugin_config 声明式配置、ZIP 验签安装、GUI 状态卡融合与指令通道。</li>
+  <li><b>主轴四 · 协议与许可负资产化：</b>Wazuh、Elkeid、Velociraptor 的私有或 gRPC 通道无法复用到双平面基线，且 GPL/AGPL 增加闭源商业分发风险，因此只保留语料、设计或独立工具价值。</li>
+</ul>
+
+<!-- ================= 11 落地路线与风险 ================= -->
+<h2 class="sec" id="sec11"><span class="no">11</span>落地路线与风险清单</h2>
+<div class="stage">
+  <div class="stg p0">
+    <div class="sn">阶段一 · P0</div><div class="st">选型验证 PoC（4~6 周）</div>
+    <div class="sd">Windows 单平台收敛，仅部署 Rustinel + AIDR SDK。默认验证 alerts.json 告警落盘、按日轮转、Supervisor tail/WAL 与峰值背压；用 sigma doctor 产出规则可触发清单，实测 ETW 命令行回填、哈希延迟、文件路径、PowerShell/审计配置和注入盲区；以 doctor 与 <code>telemetry.json</code> 监测六条通道丢弃率。源码级出口条件按第 5.2.3 节逐项验收：六通道丢弃可观测、heartbeat 判活、64MB 告警预算压测、去重 <code>event.count</code> 口径、ETW 5/20/0 三档命令行捕获率、规则全坏拒绝重载、规则包签名校验、dry-run 响应。仅在需要全量行为检索时评估 fork 原始 NDJSON 输出；Sysmon 仅在明确补盲收益超过驱动与运维成本时试用。</div>
+  </div>
+  <div class="stg p1">
+    <div class="sn">阶段二 · P1</div><div class="st">主程序框架 + 插件 SDK</div>
+    <div class="sd">自研 Supervisor：按第 6.4 节将 Elkeid Agent 的进程表、注册—心跳—重启、版本与灰度机制做设计级映射（零代码），自定义跨端 IPC IDL、插件状态机、版本清单、兼容矩阵与 A/B 回滚；WAL/上传器自研，签名更新代码级参考 orbit；定义第 7.7 章 12 项插件契约；封装 Rustinel 与 AIDR（AIDR 按适配进程形态 + plugin_config 声明式配置接入，见《统一客户端第三方插件 SDK 集成设计方案 v1.2》）；故障注入前置。</div>
+  </div>
+  <div class="stg p2">
+    <div class="sn">阶段三 · P2</div><div class="st">两中心对接 + 规模化</div>
+    <div class="sd">终端 Agent Center 完成 WS 连接网关、无状态接入层、证书轮换和 Kafka topic 分流；安全管理中心完成策略全链路、AI 资产视图、ATT&CK 行为审计看板、AI 智能体链路行为画像与自动化响应闭环；ws 与数据面海量压测；扩展 Linux/macOS 并设置内核 ≥5.8、ES 权限及 /dev/bpf 实验能力 gate；按《统一客户端第三方插件 SDK 集成设计方案 v1.2》接入杀毒 AV 适配进程（ZIP 验签安装、独立特征库通道、GUI 状态卡融合；SDK 回调吞吐压测 ≥2000 事件/秒与 minifilter 兼容性为出口条件）；完成 Apache-2.0 NOTICE、可选 Sysmon EULA 与组件清单审计。</div>
+  </div>
+</div>
+
+<table>
+  <tr><th style="width:70px">级别</th><th style="width:300px">风险</th><th>缓解措施</th></tr>
+  <tr><td><span class="tag t-org">中</span></td><td class="k">全量原始遥测不是官方默认输出</td><td>默认采用本地检测 + 告警上报，不把 capture/replay 当生产输出；只有全量检索成为明确需求时才 fork 增加原始 NDJSON 输出，并单独评审性能与存储成本</td></tr>
+  <tr><td><span class="tag t-red">高</span></td><td class="k">有界队列过载丢弃导致检测前数据缺失</td><td>压测建立事件速率/丢弃率基线；<b>按六条通道（sensor_events / artifact_resolution / artifact_written_files / yara_memory_scan / active_response / capture_writer）分别采集 <code>telemetry.json</code> 丢弃计数</b>，超过阈值触发扩容或降噪；注意 64MB 告警字节预算触发时会「丢文件副本、保 webhook 投递」，<code>alerts.json</code> 因此可能出现缺口，平台完整性判定须以时间连续性 + 丢弃率双指标而非行数；Supervisor WAL 只保证已落盘数据续传，不宣称传感器全程零丢失</td></tr>
+  <tr><td><span class="tag t-org">中</span></td><td class="k">release <code>panic = "abort"</code> 崩溃即退出</td><td>源码 release profile 不做栈展开，任一 panic 直接终止进程。Supervisor 必须内置看门狗、快速重启、崩溃计数与连续崩溃熔断（避免崩溃循环），并采集崩溃转储；升级前用录制回放做回归，降低上线即崩的概率</td></tr>
+  <tr><td><span class="tag t-org">中</span></td><td class="k">告警去重导致平台低估事件量</td><td><code>[dedup]</code> 默认开启（窗口 60s / 上限 10000 条），rollup 行的 <code>event.count</code> 仅表示被抑制的重复次数。平台侧统计口径必须为 <code>sum(event.count 缺失记 1)</code>，并写入 Kafka schema 与看板定义；高频重复告警场景需同时展示「原始条数」与「去重后条数」</td></tr>
+  <tr><td><span class="tag t-red">高</span></td><td class="k">ETW 进程会话 flush 被误调低导致命令行大面积丢失</td><td>源码实测：<code>etw_process_flush_interval_ms</code> 设为 20ms 仅捕获 61.5% 命令行、设为 0 仅 16.6%，并连带失去约 78% 依赖 <code>CommandLine</code> 的 Sigma <code>process_creation</code> 规则。生产基线锁定 5ms，纳入配置巡检与策略下发白名单，禁止平台侧下发的通用配置模板把它改成 0</td></tr>
+  <tr><td><span class="tag t-red">高</span></td><td class="k">ETW 注入盲区与字段不可触发规则</td><td>sigma doctor + 真实攻击样本回归；覆盖命令行竞态、哈希延迟、ProcessAccess/CreateRemoteThread 缺口、PowerShell 7 与审计配置；关键场景由 AIDR/AV/自研响应补偿</td></tr>
+  <tr><td><span class="tag t-red">高</span></td><td class="k">三端采集质量与系统版本约束</td><td>Windows 验证 ETW 字段；Linux 明确内核 ≥5.8 支持基线；macOS 验证 ES 权限与事件覆盖，/dev/bpf 实验能力不得作为默认生产承诺</td></tr>
+  <tr><td><span class="tag t-red">高</span></td><td class="k">Rustinel 单维护者风险（v1.x 年轻）</td><td>Apache-2.0 允许闭源 fork——以 fork 自维护为兜底；锁定版本 + 严格评审每次升级</td></tr>
+  <tr><td><span class="tag t-org">中</span></td><td class="k">多进程插件稳定性验证周期长</td><td>契约先行 + 灰度发布 + 看门狗自愈；Elkeid 已验证机制 + orbit 工程先例缩短摸索；故障注入框架前置</td></tr>
+  <tr><td><span class="tag t-org">中</span></td><td class="k">收口型主程序数据搬运吞吐瓶颈</td><td>环形缓冲 + 分片上传 + 丢弃分级（遥测降采样、告警不丢）；WAL 分段压缩与批量大小参数化</td></tr>
+  <tr><td><span class="tag t-org">中</span></td><td class="k">移除 osquery 后的 Windows 字段缺口</td><td>PoC 逐项核对 Rustinel ETW 覆盖（进程树/命令行/网络/DLL）；不足时可选启用 Sysmon，由自研 Windows 事件适配器消费，附 EULA 与静默部署/卸载清理；不得为消费 Sysmon 而重新引入常驻 osquery</td></tr>
+  <tr><td><span class="tag t-org">中</span></td><td class="k">杀毒 AV SDK 引擎选型与特征库分发</td><td>商用 OEM 与开源（ClamAV）按检出率 / 许可 / 驱动签名评估；特征库走独立大文件通道（增量+断点续传+本地缓存），不占用日志数据面；扫描错峰 + 资源限额，避免与实时遥测争抢 CPU</td></tr>
+  <tr><td><span class="tag t-blu">低</span></td><td class="k">方寸 AIDR SDK 与插件契约适配</td><td>早期接口对齐（数据格式/心跳/升级）；SDK 子进程隔离，异常不影响主程序</td></tr>
+  <tr><td><span class="tag t-org">中</span></td><td class="k">AI 智能体链路画像断链与误关联</td><td>统一 agent_id / session_id / task_id / tool_call_id 传递与 Kafka schema；记录事件时间和接收时间，支持乱序与迟到事件补写；关联键不足时展示画像完整度和断点，禁止仅凭时间相近强行拼接</td></tr>
+  <tr><td><span class="tag t-org">中</span></td><td class="k">Elkeid 设计参考越界为代码/IDL 复制</td><td>前置许可门禁；Supervisor 自定义状态机和消息契约，禁止复制源码、proto 与构建脚本；CI 依赖扫描 + 架构决策记录 + 独立实现评审；Elkeid/Velociraptor 仓库列入禁止依赖清单</td></tr>
+</table>
+
+<!-- ================= 12 工作量 ================= -->
+<h2 class="sec" id="sec12"><span class="no">12</span>改造工作量（统一口径）</h2>
+<div class="secdesc">资深基线与新人视角两档估算合并取均值，形成单一工作量口径；新增杀毒 AV SDK 插件封装与安装包工程均计入。</div>
+<table>
+  <tr><th style="width:280px">工作项</th><th style="width:110px">工作量（人周）</th><th>估算要点</th></tr>
+  <tr><td class="k">Supervisor 主程序（ws 客户端 / 插件生命周期 / IPC 总线 / WAL+断点续传 / zstd+HTTP/2+mTLS 收口）</td><td><b>16~22</b></td><td>Elkeid Agent 降低生命周期探索成本，但 IPC IDL、状态机、版本兼容、A/B 回滚均须独立实现；Go 服务化、崩溃转储、Windows 服务/ACL/签名与 macOS LaunchDaemon 三端适配</td></tr>
+  <tr><td class="k">Rustinel 插件接入与遥测工程化（含可选增强缓冲）</td><td><b>4.5~7</b></td><td>三端 ETW/eBPF/ES 分级验证；官方告警文件、运行日志、schema/topic 映射；规则预编译/热加载与 doctor 丢弃指标；Rust 构建、交叉编译、背压与高吞吐验证；<b>源码级新增项</b>：<code>telemetry.json</code>/<code>heartbeat.json</code> 采集上报与丢弃率看板、64MB 告警预算压测与缺口判定、webhook HMAC 验签（若启用）、<code>rules install/update</code> 签名校验集成、ETW 双会话 flush 基线固化、<code>panic=abort</code> 崩溃熔断；预留 fork 原始遥测 NDJSON 增强工作量</td></tr>
+  <tr><td class="k">方寸 AIDR SDK 封装</td><td><b>4.5~6</b></td><td>SDK 接口对齐联调（外部依赖节奏不可控）；插件进程化适配与降级路径；契约接口迭代</td></tr>
+  <tr><td class="k">安装包工程（三端打包 / 签名 / 静默部署 / 升级 / 卸载清理）</td><td><b>3~5</b></td><td>MSI/PKG/DEB 三套安装器、代码签名证书流程、（可选）Sysmon 随包部署与 EULA 声明（原估算隐含项，单列）</td></tr>
+  <tr><td class="k">杀毒 AV SDK 插件封装（P2 范围）</td><td><b>3~4.5</b></td><td>引擎初始化 / 扫描调度 / 结果格式对接 ECS；特征库独立大文件通道开发（增量+断点续传+本地缓存）；实时防护与遥测资源竞争调优</td></tr>
+  <tr><td class="k">终端 Agent Center 双平面接入 + Kafka 分流</td><td><b>5~7.5</b></td><td>WS 连接网关与 HTTP/2 mTLS 无状态接入层、私有 CA 与证书轮换、幂等去重、topic 路由、海量终端连接压测及安全管理中心接口联调</td></tr>
+  <tr><td class="k">终端侧合计</td><td><b class="rec">31~44.5</b></td><td>移除 osquery 接入 2.5~4 人周；Rustinel 因承担行为采集与本地检测主链路，并预留可选原始遥测增强，工程化估算由 2~3.5 调整为 4.5~7 人周（源码校准后新增可观测接入、预算压测、签名校验与崩溃熔断）</td></tr>
+  <tr><td class="k">整体合计（含终端 Agent Center 接入）</td><td><b class="rec">36~52</b></td><td>——</td></tr>
+</table>
+
+<h3 class="sub" id="s12-1">12.1 成本项拆解（估算中被经验吸收的部分）</h3>
+<table>
+  <tr><th style="width:240px">成本项</th><th>说明</th></tr>
+  <tr><td class="k">双语言技术栈学习</td><td>默认终端链路涉及 Go（Supervisor）/ Rust（Rustinel），不再引入 C++ osquery 扩展；与团队 Java 主栈仍有差异，需安排定向培训与结对</td></tr>
+  <tr><td class="k">Windows 工程化复杂度</td><td>服务化、权限收敛、代码签名、崩溃转储分析、蓝屏/兼容性排查——经验依赖度最高的领域</td></tr>
+  <tr><td class="k">三端测试矩阵</td><td>Win10/11、macOS（含权限模型差异）、主流发行版 × 升级/断网/崩溃场景——测试环境搭建与自动化本身即工作量</td></tr>
+  <tr><td class="k">稳定性验证周期</td><td>断网续传（WAL 回放）、插件崩溃恢复、升级回滚、断电一致性——需故障注入测试框架，验证周期不可压缩</td></tr>
+  <tr><td class="k">契约接口迭代返工</td><td>插件契约（第 7.7 章 12 项）首次设计必有返工——预留 2~3 轮联调迭代缓冲</td></tr>
+  <tr><td class="k">知识沉淀与文档</td><td>实施团队需同步产出设计文档与运维手册（否则人员流动即失忆）——计入 10~15% 日常开销</td></tr>
+</table>
+
+<h3 class="sub" id="s12-2">12.2 缓解措施（压缩成本）</h3>
+<table>
+  <tr><th style="width:70px">优先级</th><th style="width:280px">措施</th><th>预期收益</th></tr>
+  <tr><td><span class="tag t-red">P0</span></td><td class="k">Elkeid Agent 设计级映射生命周期与版本管理</td><td>复用成熟职责划分和状态流转，减少从空白设计插件管理；严格执行零源码、零依赖、零 IDL 复制</td></tr>
+  <tr><td><span class="tag t-red">P0</span></td><td class="k">orbit（MIT）代码级参考 Supervisor 设计</td><td>进程管理 / 更新框架约 30% 设计成本直接省去——法律允许抄，别重新发明</td></tr>
+  <tr><td><span class="tag t-red">P0</span></td><td class="k">PoC 期收敛到 Windows 单平台</td><td>三端矩阵推迟到 P2，首期验证范围收窄 60%+</td></tr>
+  <tr><td><span class="tag t-org">P1</span></td><td class="k">资深架构师把关三个关键面</td><td>插件契约、并发模型（WAL/上传线程）、崩溃恢复——设计评审 1 人日/项，避免返工 2~3 轮</td></tr>
+  <tr><td><span class="tag t-org">P1</span></td><td class="k">故障注入测试框架前置到阶段二</td><td>断网/杀进程/断电场景自动化，稳定性验证从「人肉等待」变「每日回归」</td></tr>
+  <tr><td><span class="tag t-blu">P2</span></td><td class="k">Rust / Go 各 1 周定向培训 + 结对</td><td>语言栈上手曲线前移，避免边写边学</td></tr>
+</table>
+
+<div class="note warn"><b>人力口径建议：</b>整体 36~52 人周 ≈ <b>2~3 名全职工程师 × 4~6 个月</b>（含 PoC）。虽然移除 osquery 减少了接入与运维工作，但 Rustinel 成为主引擎后，规则可触发性、三端字段验证、有界队列丢弃和高吞吐背压不能省略；原始事件输出为可选增强；里程碑按 4 / 8 / 12 周设置 gate，并逐阶段校准估算。</div>
+
+<!-- ================= 修订记录 ================= -->
+<h2 class="sec" id="appx"><span class="no">附</span>修订记录与文档使用说明</h2>
+<div class="secdesc">本报告为单一 HTML 交付物，无外部依赖，可直接离线打开或随评审材料分发；所有架构图为内嵌 SVG，不引用外部图片。</div>
+<table>
+  <tr><th style="width:90px">版本</th><th style="width:230px">主题</th><th>关键变更</th></tr>
+  <tr><td class="k">v3.0</td><td>终版基线</td><td>双平面上报基线定型；六框架逐一评估并附整体架构图；加权评分矩阵；许可证商用合规前置为准入门禁</td></tr>
+  <tr><td class="k">v3.1</td><td>osquery 评分口径反转</td><td>3.85 分保留并参与评分排序，但因产品类型不匹配最终方案不采用——确立「评分与方案准入分离」</td></tr>
+  <tr><td class="k">v3.2</td><td>Elkeid 官方组件校准</td><td>按 Elkeid Host Ability / Backend Ability 重绘架构，补齐 Agent/Driver/RASP、六类插件与 AgentCenter/HUB/Kafka 等后端组件职责</td></tr>
+  <tr><td class="k">v3.3</td><td>平台两中心定型</td><td>终端 Agent Center（WS 控制面网关 + HTTP/2 + mTLS 无状态数据接入层）与安全管理中心拆分，控制流与数据流解耦</td></tr>
+  <tr><td class="k">v3.4</td><td>AI 智能体链路行为画像</td><td>安全分析可视化新增画像能力；明确默认告警级 / 增强埋点级两档、统一关联键与断链风险</td></tr>
+  <tr><td class="k">v3.5</td><td>Rustinel 1.11.0 源码校准</td><td>新增 5.2.2 源码事实表与 5.2.3 PoC 验收清单；纠正版本号与 macOS 响应能力；新增 panic=abort 等风险；工作量调整为 36~52 人周</td></tr>
+  <tr><td class="k">v3.6</td><td>Wazuh 组件/端口/能力基线</td><td>新增 5.4.1~5.4.2（组件端口基线、六大能力映射）；混合许可与 5.0 engine 转 AGPLv3；以「平台型 ≠ Agent 型」论证排除定案</td></tr>
+  <tr><td class="k">v3.7</td><td>完整整合版</td><td>新增可点击目录与修订记录；统一版本与口径；完成结构、锚点与无头渲染全量校验</td></tr>
+  <tr><td class="k">v3.8</td><td>移除商业产品对比</td><td>删除 5.4.3「与国产商业终端产品的对比」整节及第三方博客素材说明——非选型依据，且对比维度属市场视角，与本报告技术评估口径不同源；Wazuh 排除结论、2.55 分与 5.4.1/5.4.2 内容不变</td></tr>
+  <tr><td class="k">v3.9</td><td>日志收集方式横向对比</td><td>新增 4.1 节：按「采集模型 / 端上归一化 / 本地落盘形态 / 上报通道 / 断网缓冲 / 丢弃语义」六切面对比六候选；结论——收口型基线下仅 Rustinel 本地追加文件与 osquery filesystem logger 可零改造接入，为落地方案文件采集器提供依据</td></tr>
+<tr><td class="k">v4.0</td><td>下游专项交付引用刷新</td><td>同步本会话产出的两个下游专项：①《Supervisor 插件日志采集专项设计 v1.0》（三类读取器 / offset file_key / 三级队列 / LOG_FETCH 限频定型），4.1 节补引用 note；②《统一客户端第三方插件 SDK 集成设计方案 v1.1》（AIDR / AV 独立适配进程 + plugin_config 声明式配置 + ZIP 验签安装 + GUI 状态卡融合 + 指令通道），10.1 主轴三补集成形态定型结论；评分与排名不变</td></tr>
+<tr><td class="k">v4.1</td><td>架构图优化与视觉体系统一</td><td>6.3 客户端插件池规划图更新：AV/AIDR 框由「SDK 插件（P2）」旧形态改为「🟣 独立适配进程（宿主不加载 SDK）」新形态；分层标题色板统一为 🔴 平台侧红 / 🟡 终端侧黄；插件池新增第三方适配进程注记与集成方案引用；与落地方案 v1.4 重绘的 02 总体架构图（两层容器布局）共用同一套色板与通道语义</td></tr>
+<tr><td class="k">v4.2</td><td>6.3 目标架构图精简重排</td><td>按用户指示精简 6.3 插件池：删除「可选增强（非默认）」框（Sysmon/osquery 不再进入默认插件池图，Sysmon 可选启用口径保留在 6.3 正文 note）；「响应动作插件」与「自有扩展插件位」合并为「响应动作与自有扩展插件」框（进程承载合并、职责契约独立，正文表格补说明）；插件池由 2×4 重排为 2×3 均衡网格（框加宽至 216），视觉与落地方案 v1.4 保持一致</td></tr>
+</table>
+<div class="note"><b>使用说明：</b>① 决策层先读 <b>00 执行摘要</b> 与 <b>10 终局定位</b>；② 架构与客户端研发读 <b>02 双平面</b>、<b>06 目标架构</b>、<b>07 插件借鉴</b>；③ 终端检测工程读 <b>5.2 / 5.2.1 / 5.2.2 / 5.2.3</b>（Rustinel 源码级结论与 PoC 出口条件）；④ 法务与合规读 <b>1.3 许可门禁</b> 与 <b>09 传染边界</b>；⑤ 排期与人力读 <b>11 落地路线</b> 与 <b>12 工作量</b>。</div>
+<div class="note warn"><b>口径声明：</b>本报告所有评分均为<b>「终端 Agent 适配」口径</b>，不代表开源项目的整体质量排序；涉及第三方能力描述处，已分别标注「官方文档」「源码实证」「社区素材」三类来源，其中社区素材仅作背景，不作为选型依据。</div>
+
+<footer>
+  <span>开源 EDR 框架选型评估报告（终版 v4.2）· 2026-11-24 · AI 防护终端 Agent 适配终版 · 完整整合版 · 6.3 目标架构图精简为默认插件池 2×3 网格 · 下游：《日志采集专项设计 v1.0》《SDK 集成设计方案 v1.1》</span>
+  <span>终局结论：终端 Agent Center + 安全管理中心 · 自研 Supervisor（Elkeid 设计蓝本）+ Rustinel（4.05，P0）+ 方寸 AIDR SDK · osquery 3.85 评分保留但方案排除 · 整体 36~52 人周</span>
+</footer>
+</div>
+</body>
+</html>

@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package demo.component.v1;
+
+import "google/protobuf/wrappers.proto";
+
+service Events {
+  // The probe initiates the stream. The component sends a payload, then waits
+  // for a durable event ID before sending the next payload.
+  rpc Stream(stream google.protobuf.StringValue) returns (stream google.protobuf.StringValue);
+}

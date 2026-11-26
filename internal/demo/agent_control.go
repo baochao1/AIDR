@@ -13,6 +13,7 @@ const controlInterval = 600 * time.Millisecond
 
 func checkin(ctx context.Context, c Client, token string, latest *atomic.Pointer[Report], policies chan<- Policy) {
 	enrolled := false
+	connected := false
 	ticker := time.NewTicker(controlInterval)
 	defer ticker.Stop()
 	for ctx.Err() == nil {
@@ -23,6 +24,7 @@ func checkin(ctx context.Context, c Client, token string, latest *atomic.Pointer
 				}
 			} else {
 				enrolled = true
+				log.Print("management enrollment accepted")
 			}
 		}
 		if enrolled {
@@ -31,11 +33,18 @@ func checkin(ctx context.Context, c Client, token string, latest *atomic.Pointer
 				if ctx.Err() == nil {
 					log.Print(err)
 				}
-			} else if p.Revision != 0 {
-				select {
-				case policies <- p:
-				case <-ctx.Done():
-					return
+				connected = false
+			} else {
+				if !connected {
+					log.Print("management check-in accepted")
+					connected = true
+				}
+				if p.Revision != 0 {
+					select {
+					case policies <- p:
+					case <-ctx.Done():
+						return
+					}
 				}
 			}
 		}

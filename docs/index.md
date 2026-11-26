@@ -21,3 +21,7 @@
 | 依赖、设计决策及阶段进度 | [依赖](dependencies.md) · [IPC ADR](adr/0001-component-ipc.md) · [实施计划](plan.md) |
 
 图形窗口是主要演示入口，逐步终端脚本作为备用。厂商说明保留我方接入要求，语言代码、数据字段和架构各有主文档。原生 IPC 无插件 TCP 监听端口，只有兼容 TCP 模式使用插件端口。业务事件当前按原文转发，分类、关联和文件上传属于后续方案。
+
+研发接口基线见 [AIDR 端管对接规范 v1](aidr-endpoint-platform-v1.md)。
+
+认证注册演示见 [AIDR 管理端认证注册演示](aidr-enrollment-demo.md)。

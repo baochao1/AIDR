@@ -1,6 +1,6 @@
 # Elkeid 官方采集字段附录
 
-本表将提交 `c906c512d20c0d56f2b779b8558ed69abae718c8` 第一张采集矩阵转为每个记录类型一行。原表有 927 个非空字段单元格。类型 611 的 `pid_tree` 重复出现，本表合并为一项，共 926 个不同的类型与字段配对。字段集合沿用上游的展示命名，可能包含外层元数据和业务处理生成字段。实际 Agent→AgentCenter Protobuf 包含 `data_type` 与 `timestamp`、外层批次元数据，以及 `Payload.fields` 开放字符串映射。发布矩阵未声明 map 键的必填性、默认值或逐字段线上约束。Agent 心跳经源码核实的字段见主报告。 [固定提交原始数据矩阵](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/docs/ElkeidData/raw_data_desc.md)
+本表将提交 `c906c512d20c0d56f2b779b8558ed69abae718c8` 第一张采集矩阵转为每个记录类型一行。原表有 927 个非空字段单元格。类型 611 的 `pid_tree` 重复出现，本表合并为一项，共 926 个不同的类型与字段配对。统计沿用上游矩阵的展示单元格，其中 37 行含 `data_type`（类型值本身）、16 行不含，按矩阵原样保留。字段集合沿用上游的展示命名，可能包含外层元数据和业务处理生成字段。实际 Agent→AgentCenter Protobuf 包含 `data_type` 与 `timestamp`、外层批次元数据，以及 `Payload.fields` 开放字符串映射。发布矩阵未声明 map 键的必填性、默认值或逐字段线上约束。Agent 心跳经源码核实的字段见主报告。 [固定提交原始数据矩阵](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/docs/ElkeidData/raw_data_desc.md)
 
 | 类型值 | 来源模块 | 事件 | 公开字段 |
 |---|---|---|---|

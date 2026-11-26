@@ -45,7 +45,7 @@ sequenceDiagram
 
 1. Agent 配置 Manager 地址，通过默认 TCP 1515 的 TLS 连接向 `wazuh-authd` 注册。可配置验证 Manager CA、校验 Manager 身份、提供客户端证书和私钥以及使用注册密码。证书验证和共享密码开关由部署配置决定。固定 authd 配置默认启用远程注册，`use_password`、`use_source_ip` 与 `verify_host` 默认为关闭。Agent 没有配置 CA 时不会在注册库执行 Manager 身份校验。Agent 自动注册和 `agent-auth` 调用同一注册库。 [Agent 注册库](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/shared/enrollment_op.c) · [agent-auth 入口](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/os_auth/main-client.c#L280-L321) · [Manager TLS 与认证配置](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/config/authd-config.c)
 2. Manager 先按顺序解析请求。按配置验证共享密码、名称、版本、地址及组，检查名称或 IP 冲突。可配置替换旧记录，条件包括是否启用替换、旧记录断开时间、注册时间和已有密钥摘要是否相同。默认启用替换与键失配检查，断开和注册时间阈值各为 3600 秒。单节点由 authd 添加记录，集群 worker 把新增请求转交本地集群注册逻辑。成功时返回 ID、名称、绑定地址和新密钥。 [解析与替换](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/os_auth/auth.c#L66-L377) · [Manager 注册处理](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/os_auth/main-server.c#L709-L749)
-3. Agent 验证响应四项并保存本地 `client.keys`。Manager 在注册处理与后台写入流程维护自身的键记录。数据链路使用 `client.keys` 中的代理身份和共享密钥，注册密码不进入运行期数据帧。失效方式为 Manager 删除或替换 Agent 记录，地址或密钥不再匹配时后续帧被拒绝。已有密钥的 Agent 在配置的重连阶段可尝试重新注册。 [Agent 响应与持久化](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/shared/enrollment_op.c#L351-L487) · [Manager 键写入](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/os_auth/main-server.c) · [重连逻辑](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/client-agent/start_agent.c) · [密钥记录格式](https://documentation.wazuh.com/current/development/client-keys.html)
+3. Agent 验证响应四项并保存本地 `client.keys`。Manager 在注册处理与后台写入流程维护自身的键记录。数据链路使用 `client.keys` 中的代理身份和共享密钥，注册密码不进入运行期数据帧。失效方式为 Manager 删除或替换 Agent 记录，地址或密钥不再匹配时后续帧被拒绝。已有密钥的 Agent 在配置的重连阶段可尝试重新注册。 [Agent 响应与持久化](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/shared/enrollment_op.c#L351-L487) · [Manager 键写入](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/os_auth/main-server.c) · [重连逻辑](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/client-agent/start_agent.c) · [密钥记录格式](https://documentation.wazuh.com/4.14/development/client-keys.html)
 
 ### 注册报文字段
 
@@ -70,7 +70,7 @@ TLS 内部协议为顺序文本。客户端按下表顺序构造并追加换行�
 
 ### 交互案例
 
-**成功。** 一行请求、一行响应，密钥值已脱敏。
+**成功。** 请求为带 LF 的一行文本，响应为不带 LF 的一行文本，密钥值已脱敏。
 
 ```text
 OSSEC A:'example-host'
@@ -101,7 +101,7 @@ ERROR: Duplicate agent name: example-host. Unable to add agent
 
 ## 运行期数据帧
 
-默认数据端口 TCP 1514，Manager 可以配置 UDP。TCP 在数据前写 4 字节小端无符号 `payload_size`，值为后续负载字节数。UDP 直接发送负载。Manager 将可变地址 Agent 的外层 ID 与来源地址用于查找键，固定单主机地址可由地址定位。随后验证并解开安全消息。 [官方架构](https://documentation.wazuh.com/current/getting-started/architecture.html) · [TCP 帧代码](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/os_net/os_net.c#L695-L752) · [Manager 收包](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/remoted/secure.c#L556-L787)
+默认数据端口 TCP 1514，Manager 可以配置 UDP。TCP 在数据前写 4 字节小端无符号 `payload_size`，值为后续负载字节数。UDP 直接发送负载。Manager 将可变地址 Agent 的外层 ID 与来源地址用于查找键，固定单主机地址可由地址定位。随后验证并解开安全消息。 [官方架构](https://documentation.wazuh.com/4.14/getting-started/architecture.html) · [TCP 帧代码](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/os_net/os_net.c#L695-L752) · [Manager 收包](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/remoted/secure.c#L556-L787)
 
 | 层 | 线上字段 | 类型与语义 |
 |---|---|---|
@@ -120,7 +120,7 @@ ERROR: Duplicate agent name: example-host. Unable to add agent
 
 ### 通用事件与控制报文
 
-普通标准事件为 `<queue>:<location>:<message>`。第一段为单字节类别，第二段为来源，第三段由对应采集器定义，可包含冒号。官方文档列出的常用类别包括 `1`（本地日志）、`2`（远端 Syslog）、`4`（Manager remoted 到 Analysis 的安全消息包装）、`5`（数据库同步）、`8`（Syscheck）、`9`（Rootcheck）、`f`（Windows 事件）、`p`（SCA）、`d`（系统资产）、`u`（Agent 升级完成）。这些常用类别跨越不同队列方向，不构成 Agent 上报的闭集。 [官方消息格式](https://documentation.wazuh.com/current/development/message-format.html)
+普通标准事件为 `<queue>:<location>:<message>`。第一段为单字节类别，第二段为来源，第三段由对应采集器定义，可包含冒号。官方文档列出的常用类别包括 `1`（本地日志）、`2`（远端 Syslog）、`4`（Manager remoted 到 Analysis 的安全消息包装）、`5`（数据库同步）、`8`（Syscheck）、`9`（Rootcheck）、`f`（Windows 事件）、`p`（SCA）、`d`（系统资产）、`u`（Agent 升级完成）。这些常用类别跨越不同队列方向，不构成 Agent 上报的闭集。 [官方消息格式](https://documentation.wazuh.com/4.14/development/message-format.html)
 
 | 消息 | 字段及处理 |
 |---|---|

@@ -19,6 +19,7 @@
 | 智能体、日志、Skill、MCP 的数据字段与文件通道 | [AIDR 数据契约](integration/aidr-data-contract.md) |
 | 已运行、仅构建、尚未验收 | [验收记录](delivery/acceptance.md)；故障测试见[管控加固](delivery/agent-hardening.md) |
 | 依赖、设计决策及阶段进度 | [依赖](architecture/dependencies.md) · [IPC ADR](adr/0001-component-ipc.md) · [实施计划](delivery/plan.md) |
+| Agent 协议对照（Elastic、FleetDM、Elkeid、Wazuh） | [协议调研索引](research/agent-protocol/index.md) |
 
 ## 目录结构
 

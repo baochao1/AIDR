@@ -14,7 +14,7 @@
 | Agent → Fleet Server | POST `/api/fleet/agents/{id}/audit/unenroll` | Agent 认证 | 审计接口，见下文 |
 | 采集组件 → Elasticsearch | POST `/_bulk` | 对目标数据流有写权限的 output API key | 200，仍须检查逐项结果 |
 
-Fleet 使用 HTTPS 部署。正文为 UTF-8 JSON，示例请求以 `Content-Type: application/json` 发送。Fleet Server 响应使用 `Content-Type: application/json`。`Authorization` 为单值 `ApiKey <base64(id:secret)>`。注册及 check-in 发送 `User-Agent: Elastic Agent v8.17.0`，服务端检查产品名和版本范围。`Elastic-Api-Version: 2023-06-01` 可显式选版本；省略走服务器默认版本。可带 `X-Request-Id` 跟踪。check-in 可通过 `Accept-Encoding` 声明支持 Gzip。Kibana 写操作带 `kbn-xsrf`。Bulk 有独立的 NDJSON 约定。 [Fleet OpenAPI](https://github.com/elastic/fleet-server/blob/d05ee7b30ed62dba0cad7b31ff2ea003897cde82/pkg/api/versions/2023_06_01/api/openapi.yml) · [Agent HTTP 包装](https://github.com/elastic/elastic-agent/blob/96f2b9fc0dbddfcaac1c55e0e0bc9aed3bf6badb/internal/pkg/fleetapi/client/round_trippers.go)
+Fleet 使用 HTTPS 部署。正文为 UTF-8 JSON，示例请求以 `Content-Type: application/json` 发送。Fleet Server 响应使用 `Content-Type: application/json`。`Authorization` 为单值 `ApiKey <凭据>`。注册与通信凭据以 Base64 文本交付；策略下发的 output API key 是 `<id>:<secret>` 原始串，出站时需编码后再放入请求头（见“Elasticsearch 数据面”）。注册及 check-in 发送 `User-Agent: Elastic Agent v8.17.0`，服务端检查产品名和版本范围。`Elastic-Api-Version: 2023-06-01` 可显式选版本；省略走服务器默认版本。可带 `X-Request-Id` 跟踪。check-in 可通过 `Accept-Encoding` 声明支持 Gzip。Kibana 写操作带 `kbn-xsrf`。Bulk 有独立的 NDJSON 约定。 [Fleet OpenAPI](https://github.com/elastic/fleet-server/blob/d05ee7b30ed62dba0cad7b31ff2ea003897cde82/pkg/api/versions/2023_06_01/api/openapi.yml) · [Agent HTTP 包装](https://github.com/elastic/elastic-agent/blob/96f2b9fc0dbddfcaac1c55e0e0bc9aed3bf6badb/internal/pkg/fleetapi/client/round_trippers.go)
 
 ```mermaid
 sequenceDiagram

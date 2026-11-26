@@ -1,6 +1,6 @@
 # FleetDM Orbit 注册、身份与 WebSocket 通知
 
-固定 FleetDM 提交为 [3807bd7](https://github.com/fleetdm/fleet/tree/3807bd79fedbd25424ae55738b03cc8a4ae28a80)。Orbit 和 osquery 各有注册凭据。WebSocket 传送唤醒通知，查询、结果和配置继续走 HTTPS。osquery 字段见 [FleetDM 数据面](agent-protocol-fleetdm.md)。
+固定 FleetDM 提交为 [3807bd7](https://github.com/fleetdm/fleet/tree/3807bd79fedbd25424ae55738b03cc8a4ae28a80)。Orbit 和 osquery 各有注册凭据。WebSocket 传送唤醒通知，查询、结果和配置继续走 HTTPS。osquery 字段见 [FleetDM 数据面](fleetdm.md)。
 
 ## Orbit 注册和运行期认证
 
@@ -96,7 +96,7 @@ HTTP 注册错误由通用编码器输出 `message`（string）、可选 `code`�
 {"type":"distributed/read","reason":"live-42"}
 ```
 
-唤醒后 Orbit 的本机 Thrift 扩展把 HTTPS 拉到的查询交给 osquery。结果再由 Orbit 通过 HTTPS 上传。调用 osquery 接口时使用本体的 Orbit 密钥，同时发送 JSON `node_key` 和 `Authorization: NodeKey <credential>`，服务端按配置选择其中之一。调度状态依次为 `idle`、`reading`、`delivered`、`awaitingWrite`。执行期间重复触发合并为一次后续迭代。查询结果通过本地插件转换为 HTTPS `queries`、`statuses`、`messages`、`stats`。其中每个查询的动态行值为字符串，空结果正规化为空数组，`accelerate` 以秒计。 [本地分布式扩展](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/orbit/pkg/wstransport/distributed.go) · [HTTP 分布式客户端](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/client/orbit_distributed.go)
+唤醒后 Orbit 的本机 Thrift 扩展把 HTTPS 拉到的查询交给 osquery。结果再由 Orbit 通过 HTTPS 上传。调用 osquery 接口时使用本体的 Orbit 密钥，同时发送 JSON `node_key` 和 `Authorization: NodeKey <credential>`，服务端按配置选择其中之一。注意 Orbit 自身接口使用 `Node key <credential>`（见上文），两者 scheme 不同，按各自路由要求填写。调度状态依次为 `idle`、`reading`、`delivered`、`awaitingWrite`。执行期间重复触发合并为一次后续迭代。查询结果通过本地插件转换为 HTTPS `queries`、`statuses`、`messages`、`stats`。其中每个查询的动态行值为字符串，空结果正规化为空数组，`accelerate` 以秒计。 [本地分布式扩展](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/orbit/pkg/wstransport/distributed.go) · [HTTP 分布式客户端](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/client/orbit_distributed.go)
 
 ## Orbit 配置接口
 

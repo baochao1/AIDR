@@ -40,7 +40,7 @@ sequenceDiagram
 
 ## gRPC 传输约定
 
-Agent 使用 `https` 上的 HTTP/2。HTTP/2 请求头 `:method=POST`，`:path` 使用总览中大小写敏感的路径，`:authority` 由拨号目标和客户端库决定，`content-type=application/grpc` 且 `te=trailers`。实际 Agent 使用 `grpc-encoding=snappy`，压缩器以 Snappy stream writer/reader 编解码。应用代码未附加 bearer token、API key 或自定义认证元数据。Upload 设置 600 秒的调用上下文截止时间，grpc-go 可将剩余时间编码为 `grpc-timeout`。每条 DATA 消息使用一字节压缩标志、四字节无符号大端长度和消息本体，长度计算基于随后实际发送的字节。RPC 响应通常是 HTTP 200，调用结束读 `grpc-status` 及可选 `grpc-message`。 [gRPC HTTP/2 协议](https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md) · [Snappy 实现](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/agent/transport/compressor/snappy.go) · [传输入口](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/agent/transport/transfer.go)
+Agent 使用 `https` 上的 HTTP/2。HTTP/2 请求头 `:method=POST`，`:path` 使用总览中大小写敏感的路径，`:authority` 由拨号目标和客户端库决定，`content-type=application/grpc` 且 `te=trailers`。实际 Agent 使用 `grpc-encoding=snappy`，压缩器以 Snappy stream writer/reader 编解码。应用代码未附加 bearer token、API key 或自定义认证元数据。Upload 设置 600 秒的调用上下文截止时间，grpc-go 可将剩余时间编码为 `grpc-timeout`。每条 DATA 消息使用一字节压缩标志、四字节无符号大端长度和消息本体，长度计算基于随后实际发送的字节。RPC 响应通常是 HTTP 200，调用结束读 `grpc-status` 及可选 `grpc-message`。协议文档链接指向 master 分支，内容可能变化，本文结论以固定提交实现为准。 [gRPC HTTP/2 协议](https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md) · [Snappy 实现](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/agent/transport/compressor/snappy.go) · [传输入口](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/agent/transport/transfer.go)
 
 ```text
 :method: POST
@@ -261,7 +261,7 @@ grpc-status: 0
 
 ## 记录分类与载荷
 
-`data_type` 为开放 int32。AgentCenter 特判 `1000` Agent 心跳、`1001` 插件心跳、`1010` 与 `1011` 错误日志，以及 `2001`、`2003`、`6000`、`5100`、`5101`、`8010` 任务对账。源码注释分别标明 `5100` 主动资产扫描、`5101` 版本核验、`8010` 基线扫描；其它对账号的具体生产者待核实。未命中特判的类型仍走通用 Kafka 封装。固定提交的公开采集矩阵共 53 个代码和 926 个类型与字段配对，已转录为[采集字段附录](agent-protocol-elkeid-fields.md)。发布矩阵可能同时列出外层和处理后字段，逐生产者核对进度见附录。 [接入分派](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/server/agent_center/grpctrans/grpc_handler/rawdata_worker.go) [官方字段矩阵](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/docs/ElkeidData/raw_data_desc.md)
+`data_type` 为开放 int32。AgentCenter 特判 `1000` Agent 心跳、`1001` 插件心跳、`1010` 与 `1011` 错误日志，以及 `2001`、`2003`、`6000`、`5100`、`5101`、`8010` 任务对账。源码注释分别标明 `5100` 主动资产扫描、`5101` 版本核验、`8010` 基线扫描；其它对账号的具体生产者待核实。未命中特判的类型仍走通用 Kafka 封装。固定提交的公开采集矩阵共 53 个代码和 926 个类型与字段配对，已转录为[采集字段附录](elkeid-fields.md)。发布矩阵可能同时列出外层和处理后字段，逐生产者核对进度见附录。 [接入分派](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/server/agent_center/grpctrans/grpc_handler/rawdata_worker.go) [官方字段矩阵](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/docs/ElkeidData/raw_data_desc.md)
 
 心跳层所有键均位于 `Payload.fields`，线上值为字符串。以下按类型和条件完整列出 Agent 内置心跳生产者的键。
 

@@ -1,6 +1,6 @@
 # FleetDM 与 osquery
 
-固定服务端及 Orbit 提交为 `3807bd79fedbd25424ae55738b03cc8a4ae28a80`。本章跟踪 Orbit 启动的 osquery 到 Fleet Server 的 HTTPS 注册、配置、遥测及文件分块上传。Orbit 自身的节点注册、主机身份证书和 WebSocket 见配套文档。 [Orbit 链路](agent-protocol-fleetdm-orbit.md) · [固定源码](https://github.com/fleetdm/fleet/tree/3807bd79fedbd25424ae55738b03cc8a4ae28a80)
+固定服务端及 Orbit 提交为 `3807bd79fedbd25424ae55738b03cc8a4ae28a80`。本章跟踪 Orbit 启动的 osquery 到 Fleet Server 的 HTTPS 注册、配置、遥测及文件分块上传。Orbit 自身的节点注册、主机身份证书和 WebSocket 见配套文档。 [Orbit 链路](fleetdm-orbit.md) · [固定源码](https://github.com/fleetdm/fleet/tree/3807bd79fedbd25424ae55738b03cc8a4ae28a80)
 
 ## 注册与认证
 
@@ -206,7 +206,7 @@ sequenceDiagram
 
 ## 请求和响应示例
 
-以下是按固定接口编写的 HTTP/1.1 测试样例。JSON 配置和动态查询由示例部署给出。密钥、验证器、会话 ID 与请求 ID 全是占位值，发送前应替换成测试服务器实际发放的值并重算 Content-Length。换行用 LF 表示，HTTP 行边界在线上使用 CRLF。样例完整展示正文，省略代理生成的可选 HTTP 首部。JSON 空白可以变化，文件块请求须保留紧凑 JSON 及示例字段顺序。
+以下是按固定接口编写的 HTTP/1.1 测试样例，统一采用 `/api/osquery` 主路径；Orbit 实际请求走 `/api/v1/osquery` 别名，字段与处理相同。JSON 配置和动态查询由示例部署给出。密钥、验证器、会话 ID 与请求 ID 全是占位值，发送前应替换成测试服务器实际发放的值并重算 Content-Length。换行用 LF 表示，HTTP 行边界在线上使用 CRLF。样例完整展示正文，省略代理生成的可选 HTTP 首部。JSON 空白可以变化，文件块请求须保留紧凑 JSON 及示例字段顺序。
 
 ### 注册成功
 

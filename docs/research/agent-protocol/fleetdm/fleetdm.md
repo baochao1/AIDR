@@ -1,6 +1,6 @@
 # FleetDM 与 osquery
 
-固定服务端及 Orbit 提交为 `3807bd79fedbd25424ae55738b03cc8a4ae28a80`。本章跟踪 Orbit 启动的 osquery 到 Fleet Server 的 HTTPS 注册、配置、遥测及文件分块上传。Orbit 自身的节点注册、主机身份证书和 WebSocket 见配套文档。 [Orbit 链路](fleetdm-orbit.md) · [固定源码](https://github.com/fleetdm/fleet/tree/3807bd79fedbd25424ae55738b03cc8a4ae28a80)
+固定服务端及 Orbit 提交为 `3807bd79fedbd25424ae55738b03cc8a4ae28a80`。本章跟踪 Orbit 启动的 osquery 到 Fleet Server 的 HTTPS 注册、配置、遥测及文件分块上传。Orbit 自身的节点注册、主机身份证书和 WebSocket 见配套文档。 [Orbit 链路](../fleetdm-orbit/fleetdm-orbit.md) · [固定源码](https://github.com/fleetdm/fleet/tree/3807bd79fedbd25424ae55738b03cc8a4ae28a80)
 
 ## 注册与认证
 

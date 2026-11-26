@@ -1,6 +1,6 @@
 # FleetDM Orbit 注册、身份与 WebSocket 通知
 
-固定 FleetDM 提交为 [3807bd7](https://github.com/fleetdm/fleet/tree/3807bd79fedbd25424ae55738b03cc8a4ae28a80)。Orbit 和 osquery 各有注册凭据。WebSocket 传送唤醒通知，查询、结果和配置继续走 HTTPS。osquery 字段见 [FleetDM 数据面](fleetdm.md)。
+固定 FleetDM 提交为 [3807bd7](https://github.com/fleetdm/fleet/tree/3807bd79fedbd25424ae55738b03cc8a4ae28a80)。Orbit 和 osquery 各有注册凭据。WebSocket 传送唤醒通知，查询、结果和配置继续走 HTTPS。osquery 字段见 [FleetDM 数据面](../fleetdm/fleetdm.md)。
 
 ## Orbit 注册和运行期认证
 

@@ -7,13 +7,28 @@
 | 交付物 | 覆盖范围 |
 |---|---|
 | [类似产品和项目清单](candidates.md) | AIDR 已有参考、补充候选、首批产品及固定版本 |
-| [Elastic Agent / Fleet](elastic.md) | 注册与访问凭据、Fleet 控制接口、Elasticsearch Bulk 数据面 |
-| [FleetDM / osquery](fleetdm.md) | 节点注册和认证、日志及查询结果上报、文件分块上传 |
-| [FleetDM / Orbit](fleetdm-orbit.md) | Orbit 注册、节点密钥、主机身份签名、SCEP 与 WebSocket |
-| [Elkeid](elkeid.md) | 双端 TLS、服务发现、gRPC 上报及文件流、AgentCenter 到 Kafka |
-| [Elkeid 采集字段附录](elkeid-fields.md) | 53 种记录、926 个唯一类型与字段配对 |
-| [Wazuh 4.14.0](wazuh.md) | 正式 Agent 与 Manager 的 TLS 注册、密钥、事件与控制消息 |
-| [独立 wazuh-agent 实现](wazuh-agent.md) | AIDR 原先引用的实验 Agent，包含 HTTP 注册、JWT、事件批次与命令 |
+| [Elastic Agent / Fleet](elastic/elastic.md) | 注册与访问凭据、Fleet 控制接口、Elasticsearch Bulk 数据面 |
+| [FleetDM / osquery](fleetdm/fleetdm.md) | 节点注册和认证、日志及查询结果上报、文件分块上传 |
+| [FleetDM / Orbit](fleetdm-orbit/fleetdm-orbit.md) | Orbit 注册、节点密钥、主机身份签名、SCEP 与 WebSocket |
+| [Elkeid](elkeid/elkeid.md) | 双端 TLS、服务发现、gRPC 上报及文件流、AgentCenter 到 Kafka |
+| [Elkeid 采集字段附录](elkeid/elkeid-fields.md) | 53 种记录、926 个唯一类型与字段配对 |
+| [Wazuh 4.14.0](wazuh/wazuh.md) | 正式 Agent 与 Manager 的 TLS 注册、密钥、事件与控制消息 |
+| [独立 wazuh-agent 实现](wazuh-agent/wazuh-agent.md) | AIDR 原先引用的实验 Agent，包含 HTTP 注册、JWT、事件批次与命令 |
+
+## 认证过程与本地 Demo
+
+每个产品或实现单独成目录，含一份从接口规格提炼的认证过程文档和一个可运行的本地 demo。demo 使用 Python 标准库（Elkeid 另用 `cryptography` 生成临时证书），不连接真实服务。
+
+| 产品/实现 | 认证过程 | 可运行 Demo |
+|---|---|---|
+| Elastic Agent / Fleet | [认证过程](elastic/authentication.md) | [demo.py](elastic/demo.py) |
+| Elkeid | [认证过程](elkeid/authentication.md) | [demo.py](elkeid/demo.py) |
+| FleetDM osquery | [认证过程](fleetdm/authentication.md) | [demo.py](fleetdm/demo.py) |
+| FleetDM Orbit | [认证过程](fleetdm-orbit/authentication.md) | [demo.py](fleetdm-orbit/demo.py) |
+| Wazuh 4.14.0 | [认证过程](wazuh/authentication.md) | [demo.py](wazuh/demo.py) |
+| wazuh-agent 实验实现 | [认证过程](wazuh-agent/authentication.md) | [demo.py](wazuh-agent/demo.py) |
+
+在对应目录下运行 `python demo.py`;全部断言通过时输出 `PASS`。demo 只复现凭据流转与协议边界，覆盖范围和简化项见各认证过程文档的末尾说明。
 
 首批范围以代码可溯源、Agent 与接收端配对为准。与 AIDR 对照时分别映射认证注册、平台遥测和文件传输。AIDR 插件进程内外的通信另见 [数据契约](../../integration/aidr-data-contract.md)，平台接口基线见 [端管对接规范](../../integration/aidr-endpoint-platform-v1.md)。各产品文档保留其尚未核实的字段、支路和运行时行为。
 

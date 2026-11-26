@@ -1,6 +1,6 @@
 # AIDR 已引用的 wazuh-agent 实验实现
 
-本章固定到独立仓库 `wazuh/wazuh-agent` 的 `ca211324af5c88caf77fcd57cab0e98475f8e4ce`。AIDR 既有调研引用该版本的多类型队列。本章的 HTTP 接口来自这个版本的 Agent 实现和配套消息文档。管理端处理只能从接口契约与本仓库测试替身核对，生产端配对留作未验证。正式 4.x Agent 与 Manager 配对另见 [Wazuh 4.x 调研](wazuh.md)。 [固定仓库](https://github.com/wazuh/wazuh-agent/tree/ca211324af5c88caf77fcd57cab0e98475f8e4ce) · [AIDR 既有调研](../research.md)
+本章固定到独立仓库 `wazuh/wazuh-agent` 的 `ca211324af5c88caf77fcd57cab0e98475f8e4ce`。AIDR 既有调研引用该版本的多类型队列。本章的 HTTP 接口来自这个版本的 Agent 实现和配套消息文档。管理端处理只能从接口契约与本仓库测试替身核对，生产端配对留作未验证。正式 4.x Agent 与 Manager 配对另见 [Wazuh 4.x 调研](../wazuh/wazuh.md)。 [固定仓库](https://github.com/wazuh/wazuh-agent/tree/ca211324af5c88caf77fcd57cab0e98475f8e4ce) · [AIDR 既有调研](../../research.md)
 
 ## 接口目录
 

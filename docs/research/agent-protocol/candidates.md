@@ -16,7 +16,7 @@
 
 | 项目及类型 | 固定源码 | 适用范围与优先级 |
 |---|---|---|
-| Wazuh，主机安全与遥测 | [4.14.0 · e0707d7](https://github.com/wazuh/wazuh/tree/e0707d735cc60b38da2723376a2f0faeffe697bb)、[独立 Agent · ca21132](https://github.com/wazuh/wazuh-agent/tree/ca211324af5c88caf77fcd57cab0e98475f8e4ce) | 已纳入，见下方链接。正式版用同一固定提交核对 Agent 和 Manager。独立 Agent 为 AIDR 原有队列参考，另查 HTTP 批次与认证。[正式版](wazuh.md) · [独立 Agent](wazuh-agent.md) |
+| Wazuh，主机安全与遥测 | [4.14.0 · e0707d7](https://github.com/wazuh/wazuh/tree/e0707d735cc60b38da2723376a2f0faeffe697bb)、[独立 Agent · ca21132](https://github.com/wazuh/wazuh-agent/tree/ca211324af5c88caf77fcd57cab0e98475f8e4ce) | 已纳入，见下方链接。正式版用同一固定提交核对 Agent 和 Manager。独立 Agent 为 AIDR 原有队列参考，另查 HTTP 批次与认证。[正式版](wazuh/wazuh.md) · [独立 Agent](wazuh-agent/wazuh-agent.md) |
 | MiNiFi C++，边缘采集 | [1c87f39](https://github.com/apache/nifi-minifi-cpp/tree/1c87f39c13e45c226bf11442af5f454f77fa6db9) | C2 心跳和采集配置，适用于采集 Agent 对照。服务端与具体数据出口随部署选型确定。 |
 | Mender，受管设备 OTA | [Mender 4.0.0 · 146951a](https://github.com/mendersoftware/mender/tree/146951aa650064af0c28b1e42eb729bcd7aa9155)、[Mender Artifact · e56270c](https://github.com/mendersoftware/mender-artifact/tree/e56270c4a7cc4a028c11252b78cd1f3fbb0359df) | 设备更新、提交状态、制品签名与封装。适合比较设备管理和软件更新。 |
 | HashiCorp go-plugin，插件运行库 | [v1.6.3 · 5b05b3e](https://github.com/hashicorp/go-plugin/tree/5b05b3e78c6c3e4e0b8f21a9921cbd739ba72f2a) | 本地进程握手、RPC 与重新附加，适用于插件协议。 |

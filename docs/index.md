@@ -30,7 +30,7 @@
 | [integration/](integration/) | 端管规范、gRPC 端点、数据契约、厂商接入 |
 | [demo/](demo/) | 汇报讲稿、图形/终端/认证注册演示 |
 | [delivery/](delivery/) | 实施计划、验收记录、管控加固 |
-| [research/](research/) | 源码调研、Agent 协议调研任务与[产品级调研](research/agent-protocol/) |
+| [research/](research/) | 源码调研与 [Agent 协议调研（任务书、产品明细、认证过程与本地 Demo）](research/agent-protocol/) |
 | [adr/](adr/) | 架构决策记录 |
 
 图形窗口是主要演示入口，逐步终端脚本作为备用。厂商说明保留我方接入要求，语言代码、数据字段和架构各有主文档。原生 IPC 无插件 TCP 监听端口，只有兼容 TCP 模式使用插件端口。业务事件当前按原文转发，分类、关联和文件上传属于后续方案。

@@ -180,7 +180,7 @@ plugins/mock-rust/
 configs/
 test/{integration,e2e,fixtures}/
 scripts/{build,package,sign,demo}/
-docs/{research.md,architecture.md,adr,acceptance.md}/
+docs/{index.md,overview/,architecture/,integration/,demo/,delivery/,research/,adr/}/
 ```
 
 提供 PowerShell 与 shell 或 Go 跨平台构建/打包工具；锁定依赖版本，支持离线制品交付，生成依赖及许可证清单。禁止将私钥、真实凭据提交仓库。

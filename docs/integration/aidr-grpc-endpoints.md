@@ -2,7 +2,7 @@
 
 ## 1. 双方的端点
 
-本机只有厂商 EXE 监听一个 gRPC 地址。Agent 是客户端，双向流共用同一条连接。Go 适配器可选 [原生 IPC](native-ipc.md)，Windows 使用命名管道，Linux/macOS 使用 Unix socket。下文 Python 和 Java 片段演示已经保留的 TLS 回环 TCP 兼容路径。
+本机只有厂商 EXE 监听一个 gRPC 地址。Agent 是客户端，双向流共用同一条连接。Go 适配器可选 [原生 IPC](../architecture/native-ipc.md)，Windows 使用命名管道，Linux/macOS 使用 Unix socket。下文 Python 和 Java 片段演示已经保留的 TLS 回环 TCP 兼容路径。
 
 | 连接 | 发起方 | 监听方 | 示例 |
 |---|---|---|---|
@@ -87,7 +87,7 @@
 
 ## 3. Go 实现
 
-项目现有 Go 代码可直接作为参考。厂商服务端监听和注册两个服务的代码在 [component.go](../internal/component/component.go)，双向流的 token 校验与 ready → event → ACK 在 [events.go](../internal/component/events.go)。Go Mock 的启动入口在 [cmd/mock-go/main.go](../cmd/mock-go/main.go)。
+项目现有 Go 代码可直接作为参考。厂商服务端监听和注册两个服务的代码在 [component.go](../../internal/component/component.go)，双向流的 token 校验与 ready → event → ACK 在 [events.go](../../internal/component/events.go)。Go Mock 的启动入口在 [cmd/mock-go/main.go](../../cmd/mock-go/main.go)。
 
 服务端的关键操作是用 net.Listen("tcp", endpoint) 监听，加载 tls.X509KeyPair，创建 grpc.NewServer，注册 Health 和 Events，再调用 Serve。当前项目的 Events 使用手工 ServiceDesc，采用代码生成时也可以用 Events 的生成注册函数。
 

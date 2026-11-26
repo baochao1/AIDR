@@ -146,7 +146,7 @@ Supervisor 崩溃恢复：P0 允许清理已验证归属的残留实例后重启
 
 ### M0：源码验证与 ADR
 
-克隆或获取 Elastic Agent、Fleet Server、go-plugin、Nomad、supervisord、Mender 的固定版本。记录 URL、commit、许可证、实际文件和符号、调用链及测试证据。重点验证 go-plugin 握手、Windows 传输、长连接、跨语言、重连；supervisord 进程状态/健康检查；Nomad Driver 生命周期/恢复；Elastic policy/check-in 与 runtime；Mender 更新事务。源码无法获取时标记 blocker，不编造。输出 `docs/research.md`、`docs/adr/`。不要因次要项目调研阻塞最小 Demo。
+克隆或获取 Elastic Agent、Fleet Server、go-plugin、Nomad、supervisord、Mender 的固定版本。记录 URL、commit、许可证、实际文件和符号、调用链及测试证据。重点验证 go-plugin 握手、Windows 传输、长连接、跨语言、重连；supervisord 进程状态/健康检查；Nomad Driver 生命周期/恢复；Elastic policy/check-in 与 runtime；Mender 更新事务。源码无法获取时标记 blocker，不编造。输出 `docs/research/research.md`、`docs/adr/`。不要因次要项目调研阻塞最小 Demo。
 
 ### M1：本地 Runtime + IPC A/B
 

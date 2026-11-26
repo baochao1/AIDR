@@ -163,7 +163,7 @@ TLS 握手失败时无法建立 gRPC 流。身份无法提取时返回 `UNAUTHEN
 | Control/Connect，Heartbeat → HeartbeatReply | 持续报到并同步策略状态。 | 管理端在 agents 保存 boot_id、last_seq、last_seen_at，在 agent_status 和 component_status 保存策略及组件快照。通过终端详情查询这些记录。 |
 | Telemetry/Report，EventBatch → EventBatchReply | 将插件发现与检测结果归档到对应终端。 | 管理端将证书派生的 tenant_id、agent_id 写入 events 表。通过 event_id 查询原始事件和来源，回执用于确认 Agent 可以出队。 |
 
-断线时释放活动流，持久化终端登记和心跳记录。重连重新执行 mTLS 和 Hello，平台分配新的 connection_id。现有可运行演示仍使用 HTTPS/mTLS 历史接口，见 [认证注册演示指南](aidr-enrollment-demo.md)。以上为正式 gRPC 设计，待实现及验收。
+断线时释放活动流，持久化终端登记和心跳记录。重连重新执行 mTLS 和 Hello，平台分配新的 connection_id。现有可运行演示仍使用 HTTPS/mTLS 历史接口，见 [认证注册演示指南](../demo/aidr-enrollment-demo.md)。以上为正式 gRPC 设计，待实现及验收。
 
 #### 终端唯一性和网络地址
 

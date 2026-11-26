@@ -40,7 +40,7 @@
 - Demo 身份引导面向一个测试 CA、一个端点及一个管理角色。服务器证书默认绑定 localhost/127.0.0.1。证书轮换、多租户和完整动作审计待实施。
 - 组件控制已提供 gRPC Health、启动、停止及合成事件流。GetInfo、Configure、Shutdown、Execute 的通用 SDK 契约和临时任务 ACK API 待实施。
 - Windows 使用挂起启动并绑定 Job Object。Linux/macOS 使用进程组，合作型 Mock 监视父进程管道。进程组逃逸、异常重启后的平台级清理验证，以及 SCM/systemd/launchd 安装验收待完成。
-- 组件支持 Named Pipe、Unix socket 和 TLS 回环 TCP，均使用每实例证书与 token。Windows 本机和 Linux WSL2 的双组件零 TCP socket 场景见 [原生 IPC 验收](native-ipc.md)。跨账户 ACL 验收待完成。同一权限账户下可运行的 Mock 未作沙箱化。
+- 组件支持 Named Pipe、Unix socket 和 TLS 回环 TCP，均使用每实例证书与 token。Windows 本机和 Linux WSL2 的双组件零 TCP socket 场景见 [原生 IPC 验收](../architecture/native-ipc.md)。跨账户 ACL 验收待完成。同一权限账户下可运行的 Mock 未作沙箱化。
 - SQLite 持久化期望状态、已提交版本、队列和接收记录。崩溃恢复基于旧版本提交点和重放当前策略。完整升级事务历史、阶段清理和涵盖所有故障窗口的验证待实施。
 - 周期上传目前使用固定间隔。队列满时对组件背压。服务器保留接收记录，长期容量、批量吞吐、磁盘满恢复、大文件通道和长时间 soak 未验证。未运行 race 检测，亦未采集 CPU、RSS 或吞吐基准。
 

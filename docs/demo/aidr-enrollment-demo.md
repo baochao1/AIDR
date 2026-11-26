@@ -2,9 +2,9 @@
 
 ## 开始演示
 
-[打开 Windows 演示启动脚本](../Start-AIDR-Enrollment-Demo.cmd)。双击运行，出现每条 PASS 后按 Enter 继续。演示机须能从命令行运行 Go 和 Python 3.11。脚本会构建程序、启动管理端和 Agent，并在退出时清理演示进程和临时数据。
+[打开 Windows 演示启动脚本](../../Start-AIDR-Enrollment-Demo.cmd)。双击运行，出现每条 PASS 后按 Enter 继续。演示机须能从命令行运行 Go 和 Python 3.11。脚本会构建程序、启动管理端和 Agent，并在退出时清理演示进程和临时数据。
 
-**演示范围**：当前启动脚本运行的是已验证的 HTTPS/mTLS 注册与心跳 Demo。正式 gRPC 协议见[端管对接规范](aidr-endpoint-platform-v1.md#正式-grpc-服务与编码)，待实现并完成端到端验收后再演示 gRPC 链路。
+**演示范围**：当前启动脚本运行的是已验证的 HTTPS/mTLS 注册与心跳 Demo。正式 gRPC 协议见[端管对接规范](../integration/aidr-endpoint-platform-v1.md#正式-grpc-服务与编码)，待实现并完成端到端验收后再演示 gRPC 链路。
 
 ## 案例：终端注册、首次报到与断线恢复
 
@@ -22,7 +22,7 @@
 
 ## Agent 首次关联、认证和重连的字段
 
-以下字段对应本演示的 HTTPS/mTLS 接口。正式 gRPC 的证书身份、`Hello`、`Welcome` 和心跳字段见 [端管对接规范](aidr-endpoint-platform-v1.md)。
+以下字段对应本演示的 HTTPS/mTLS 接口。正式 gRPC 的证书身份、`Hello`、`Welcome` 和心跳字段见 [端管对接规范](../integration/aidr-endpoint-platform-v1.md)。
 
 ### 认证材料
 

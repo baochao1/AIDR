@@ -1,6 +1,6 @@
 # 发给第三方厂商的 AIDR 首轮联调说明
 
-系统分层、Agent 职责与开源来源映射见 [架构设计](architecture.md)。
+系统分层、Agent 职责与开源来源映射见 [架构设计](../architecture/architecture.md)。
 
 ## 1. 先确定交付物与分工
 
@@ -88,7 +88,7 @@ sequenceDiagram
 
 如果 Agent 第一次拨号时插件还在初始化或尚未开始监听，Agent 会在启动窗口内继续尝试。地址不匹配或监听未启动时连接无法建立；证书不匹配时 TLS 失败；token 无效时 RPC 返回 `UNAUTHENTICATED`；漏注册接口时通常返回 `UNIMPLEMENTED`。这些是不同的排查点。
 
-**Linux/macOS 与兼容方式。** `unix` 模式按相同顺序监听给定 socket 路径。厂商的 Python/Java 库如果首轮只支持 TCP，应在签名制品明确声明 `tcp`，按实际传入的 `127.0.0.1:端口` 监听。方法、证书与 token 契约保持一致。两类本机连接都由 Agent 发起，厂商插件无需直接连接远程管理端。见 [语言实现示例](aidr-grpc-endpoints.md) 和 [原生 IPC 验收](native-ipc.md)。
+**Linux/macOS 与兼容方式。** `unix` 模式按相同顺序监听给定 socket 路径。厂商的 Python/Java 库如果首轮只支持 TCP，应在签名制品明确声明 `tcp`，按实际传入的 `127.0.0.1:端口` 监听。方法、证书与 token 契约保持一致。两类本机连接都由 Agent 发起，厂商插件无需直接连接远程管理端。见 [语言实现示例](aidr-grpc-endpoints.md) 和 [原生 IPC 验收](../architecture/native-ipc.md)。
 
 #### 3. 插件先初始化 SDK，再报告就绪
 
@@ -104,7 +104,7 @@ Agent 调用 `/grpc.health.v1.Health/Check`，请求为空的 `service` 字段�
 | 方法全名 | 来源 | 插件要做什么 |
 |---|---|---|
 | /grpc.health.v1.Health/Check | gRPC 标准健康检查 | 校验实例 token。SDK 可提供能力时返回 SERVING。 |
-| /demo.component.v1.Events/Stream | [项目 Protobuf](../api/proto/component/v1/events.proto) | 校验 token，读取第一条 ready，发送一条数据并等待 Agent ACK。 |
+| /demo.component.v1.Events/Stream | [项目 Protobuf](../../api/proto/component/v1/events.proto) | 校验 token，读取第一条 ready，发送一条数据并等待 Agent ACK。 |
 
 **Agent 主动连接并建流，插件有事件时在流上发送。** 两个方向都使用 google.protobuf.StringValue。Agent 第一条 value 是 ready；插件第一条 value 可以是下面的 JSON 文本：
 
@@ -116,7 +116,7 @@ Agent 给事件生成 event_id，终端 SQLite 提交后以 StringValue 回复�
 |---|---|
 | 本机和管理端各监听什么、TLS 和 token 怎么用、Python/Go/Java 服务端与客户端示例 | [gRPC 端点与语言示例](aidr-grpc-endpoints.md) |
 | 智能体、日志、Skill、MCP 事件格式，以及 Agent 封装、落盘和外发 | [AIDR 数据契约与流程图](aidr-data-contract.md) |
-| 实际运行的 Go 参考代码 | [Health 和启动](../internal/component/component.go) · [Events 事件流](../internal/component/events.go) |
+| 实际运行的 Go 参考代码 | [Health 和启动](../../internal/component/component.go) · [Events 事件流](../../internal/component/events.go) |
 | 插件尝试重连、状态变化和恢复边界 | 本文后面的生命周期与故障恢复章节 |
 
 ### 第三步，交付、发布和验收
@@ -206,7 +206,7 @@ Agent 管控分为制品、进程和数据三个层次。管理端分别查看�
 | 插件反复故障 | 独立探活。运行中退出、持续探活失败、启动失败都计入故障预算。每组件 60 秒内达到 5 次时限流，等待故障滑出窗口或新策略重置，期间可在管理端查看状态。 | 初始化错误写出可定位日志，保持 Health 响应及时。严重故障应报告失败并释放资源。 |
 | 管理端慢或制品下载慢 | check-in 和下载在后台运行，已运行的插件各自探活。安装提交和进程切换由协调器串行。 | 插件只连接本机 Agent 数据链路，上传与重试由 Agent 处理，组件侧按事件流背压约定运行。 |
 
-Windows 本机与 Ubuntu WSL2 的生命周期回归通过。专项验证主动切断首条流后可重连且序号持续、已安装入口文件变化后拒绝使用、重启预算窗口到期后恢复。三端六种 Go 构建目标通过。详见 [插件管控加固与验收](agent-hardening.md)。
+Windows 本机与 Ubuntu WSL2 的生命周期回归通过。专项验证主动切断首条流后可重连且序号持续、已安装入口文件变化后拒绝使用、重启预算窗口到期后恢复。三端六种 Go 构建目标通过。详见 [插件管控加固与验收](../delivery/agent-hardening.md)。
 
 正式交付仍需落实服务身份与目录 ACL、组件最小权限、配置 revision 和生效回执、完整升级事务恢复。插件没收到 ACK 的源事件重放和源 ID 去重仍待协议确认。当前 Agent 已确认落盘的事件由本地队列独立续传。重启预算目前只在同一个 Agent 进程中记录。
 

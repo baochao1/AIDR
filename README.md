@@ -4,11 +4,11 @@
 
 | 读者 | 阅读入口 |
 |---|---|
-| 领导 | [三分钟汇报](docs/aidr-management-brief.md) |
-| 第三方插件厂商 | [我方接入要求](docs/aidr-vendor-handoff.md) |
-| 研发 | [研发接手指南](docs/engineering-guide.md) |
-| 产品经理 | [产品范围与验收](docs/product-scope.md) |
-| 演示操作 | [Windows Agent Demo 操作手册](docs/windows-agent-demo.md) |
+| 领导 | [三分钟汇报](docs/demo/aidr-management-brief.md) |
+| 第三方插件厂商 | [我方接入要求](docs/integration/aidr-vendor-handoff.md) |
+| 研发 | [研发接手指南](docs/overview/engineering-guide.md) |
+| 产品经理 | [产品范围与验收](docs/overview/product-scope.md) |
+| 演示操作 | [Windows Agent Demo 操作手册](docs/demo/windows-agent-demo.md) |
 
 完整目录和主文档归属见 [交付文档导航](docs/index.md)。
 

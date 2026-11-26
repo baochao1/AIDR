@@ -37,7 +37,7 @@
 ## 技术入口
 
 - 协议 api/proto/component/v1/events.proto
-- 对接规范 docs/aidr-integration-demo.md
+- 对接规范 docs/demo/aidr-integration-demo.md
 - 界面 scripts/aidr-agent-console.py
 - 不打开窗口的流程验证 python scripts/aidr-agent-console.py --smoke
 「本机通信」列显示「命名管道 · 无端口」时，表示本次 Go AIDR 样例没有使用 TCP 监听端口。管理端 HTTPS 仍独立工作。

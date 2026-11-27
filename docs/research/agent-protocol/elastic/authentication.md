@@ -35,11 +35,41 @@ sequenceDiagram
 
 ## 逐步过程
 
-1. **签发注册令牌**：管理员在 Kibana `POST /api/fleet/enrollment_api_keys`，带 `kbn-xsrf`，响应 `item.api_key`。`expiration` 虽被 route 接受，但固定提交的签发函数未传给 Security，不能据此推导过期时间。
-2. **注册**：Agent `POST /api/fleet/agents/enroll`，请求头 `Authorization: ApiKey <enrollment>`、`User-Agent: Elastic Agent v8.17.0`，正文 `type=PERMANENT` 与 `metadata`。Fleet Server 校验 Key 和版本，生成 Agent UUID 与新的 access API key；成功响应为 `action=created`，保留 `item.id` 和 `item.access_api_key` 后才能进入下一步。
-3. **首次签入**：Agent `POST /api/fleet/agents/{id}/checkin`，带 `ApiKey <access>`。路径 `id` 必须与凭据绑定的 Agent 记录一致。响应给出策略与动作；策略中的 `outputs.<name>.api_key` 是 output 凭据，供采集组件使用。
-4. **动作确认**：Agent `POST /api/fleet/agents/{id}/acks`，带 `events[]`。HTTP 200 仍须检查逐项 `items[].status`；逐项失败时 HTTP 状态取最大项状态。
-5. **数据面写入**：采集组件用 output API key 对 `POST /_bulk` 发 NDJSON。策略里是原始 `<id>:<secret>`，出站 `Authorization` 使用 `ApiKey <base64(id:secret)>`。批次 HTTP 200 不代表逐条成功，需检查 `items[]`。
+### 1. 管理员签发注册令牌
+
+- **执行方**：管理员，通过 Kibana 管理客户端
+- **请求**：`POST /api/fleet/enrollment_api_keys`；请求头带 Kibana 管理身份和 `kbn-xsrf`
+- **响应**：Kibana 返回 200，响应体 `item.api_key` 即注册令牌
+- **边界**：请求体接受 `expiration`，但固定提交的签发函数没有把它传给 Security，不能据此推断令牌过期时间
+
+### 2. Agent 注册
+
+- **发起方**：Agent → Fleet Server
+- **请求**：`POST /api/fleet/agents/enroll`；请求头 `Authorization: ApiKey <enrollment>`、`User-Agent: Elastic Agent v8.17.0`；请求体 `type=PERMANENT` 与 `metadata`
+- **处理**：Fleet Server 校验注册令牌和版本，生成 Agent UUID 与新的 access API key
+- **响应**：`action=created`、`item.id`、`item.access_api_key`
+- **下一步**：Agent 保存后两项后才能签入
+
+### 3. Agent 首次签入
+
+- **发起方**：Agent → Fleet Server
+- **请求**：`POST /api/fleet/agents/{id}/checkin`；请求头 `Authorization: ApiKey <access>`
+- **约束**：路径 `id` 必须与该 access key 绑定的 Agent 记录一致
+- **响应**：Fleet Server 返回策略和动作；策略中的 `outputs.<name>.api_key` 是下发给采集组件的 output 凭据
+
+### 4. Agent 确认动作
+
+- **发起方**：Agent → Fleet Server
+- **请求**：`POST /api/fleet/agents/{id}/acks`；请求体携带 `events[]`
+- **响应**：HTTP 200 不代表全部成功，Agent 需逐项检查 `items[].status`
+- **边界**：有失败项时，服务端把 HTTP 状态码设为各项中的最大值
+
+### 5. 采集组件写入数据面
+
+- **发起方**：采集组件 → Elasticsearch
+- **凭据**：从策略取原始串 `<id>:<secret>`，编码为 Base64 后放入 `Authorization: ApiKey <base64(id:secret)>`
+- **请求**：`POST /_bulk`，请求体为 NDJSON
+- **响应**：HTTP 200 不代表逐条成功，需检查 `items[]`
 
 ## 失败与重试
 

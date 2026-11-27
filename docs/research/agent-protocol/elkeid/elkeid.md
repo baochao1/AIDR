@@ -12,7 +12,10 @@
 | `POST /grpc.FileExt/Upload` | Agent → AgentCenter | gRPC 客户端流，`FileUploadRequest` / `UploadRequest` → 单一 `FileUploadResponse` / `UploadResponse` | `handleUpload` → `FileExtHandler.Upload` |
 | Kafka Produce | AgentCenter → Kafka | 每条事件作为一个 Protobuf `MQData` 值，键为 UTF-8 Agent ID | `handleRawData` → `SendPBWithKey` |
 
-以下示例使用测试数据。TLS、控制流与数据流都使用项目固定提交，Kafka 生产者连接取部署配置。 [Agent schema](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/agent/proto/grpc.proto) · [AgentCenter schema](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/server/agent_center/grpctrans/proto/grpc.proto)
+以下示例使用测试数据。TLS、控制流与数据流都使用项目固定提交，Kafka 生产者连接取部署配置。
+
+- **证据**：[Agent schema](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/agent/proto/grpc.proto)
+- **证据**：[AgentCenter schema](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/server/agent_center/grpctrans/proto/grpc.proto)
 
 ```mermaid
 sequenceDiagram
@@ -40,7 +43,17 @@ sequenceDiagram
 
 ## gRPC 传输约定
 
-Agent 使用 `https` 上的 HTTP/2。HTTP/2 请求头 `:method=POST`，`:path` 使用总览中大小写敏感的路径，`:authority` 由拨号目标和客户端库决定，`content-type=application/grpc` 且 `te=trailers`。实际 Agent 使用 `grpc-encoding=snappy`，压缩器以 Snappy stream writer/reader 编解码。应用代码未附加 bearer token、API key 或自定义认证元数据。Upload 设置 600 秒的调用上下文截止时间，grpc-go 可将剩余时间编码为 `grpc-timeout`。每条 DATA 消息使用一字节压缩标志、四字节无符号大端长度和消息本体，长度计算基于随后实际发送的字节。RPC 响应通常是 HTTP 200，调用结束读 `grpc-status` 及可选 `grpc-message`。协议文档链接指向 master 分支，内容可能变化，本文结论以固定提交实现为准。 [gRPC HTTP/2 协议](https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md) · [Snappy 实现](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/agent/transport/compressor/snappy.go) · [传输入口](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/agent/transport/transfer.go)
+- **传输**：Agent 使用 `https` 上的 HTTP/2。
+- **请求头**：HTTP/2 请求头 `:method=POST`，`:path` 使用总览中大小写敏感的路径，`:authority` 由拨号目标和客户端库决定，`content-type=application/grpc` 且 `te=trailers`。
+- **压缩**：实际 Agent 使用 `grpc-encoding=snappy`，压缩器以 Snappy stream writer/reader 编解码。
+- **边界**：应用代码未附加 bearer token、API key 或自定义认证元数据。
+- **超时**：Upload 设置 600 秒的调用上下文截止时间，grpc-go 可将剩余时间编码为 `grpc-timeout`。
+- **帧格式**：每条 DATA 消息使用一字节压缩标志、四字节无符号大端长度和消息本体，长度计算基于随后实际发送的字节。
+- **响应**：RPC 响应通常是 HTTP 200，调用结束读 `grpc-status` 及可选 `grpc-message`。
+- **结论**：协议文档链接指向 master 分支，内容可能变化，本文结论以固定提交实现为准。
+- **证据**：[gRPC HTTP/2 协议](https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md)
+- **证据**：[Snappy 实现](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/agent/transport/compressor/snappy.go)
+- **证据**：[传输入口](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/agent/transport/transfer.go)
 
 ```text
 :method: POST
@@ -54,9 +67,30 @@ grpc-encoding: snappy
 
 ## 认证、身份和连接生命周期
 
-1. Agent 在构建时嵌入 CA、客户端证书和客户端私钥。连接前 `setDialOptions` 解析 PEM 并配置 TLS。Agent 使用自定义校验，将对端证书链验证到指定 CA，并验证预期 DNS 名称 `elkeid.com`。 [Agent 凭据加载](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/agent/transport/connection/product.go) [Agent 校验逻辑](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/agent/transport/connection/connection.go)
-2. AgentCenter 从磁盘加载服务端证书、私钥及客户端信任 CA，要求并验证客户端证书。凭据加载失败会退出。TLS 失败发生在 RPC 消息交换前。 gRPC schema 未声明注册、签发、续期和吊销 RPC。该路径中也未找到动态重新加载证书的行为。部署路径在构建前提供 Agent 端证书材料，AgentCenter 通过 `server.ssl.certfile`、`server.ssl.keyfile`、`server.ssl.cafile` 提供服务端材料。给定源码显示替换 Agent 嵌入材料需要重新构建并部署，替换服务端配置材料由启动时重新加载。项目说明要求两端部署材料配套，未找到自动签发或轮换控制器，以及证书吊销名单或 OCSP 配置。证书生命周期由部署环境提供。 [Agent 构建说明](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/agent/README.md) [服务端配置读取](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/server/agent_center/common/init.go) [AgentCenter TLS](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/server/agent_center/grpctrans/grpc_server.go)
-3. `agent_id` 是业务身份。Agent 在初始化时从显式配置、主机标识材料或本地持久化的 `machine-id` 取得或生成 ID。AgentCenter 在 TLS 建立后读取首包 ID，以该 ID 注册在线连接并记录连接来源地址。首条 Agent 心跳初始化在线详情并触发当前配置下发。流关闭后清理连接和心跳指标。 [ID 初始化](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/agent/agent/id.go) [流处理](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/server/agent_center/grpctrans/grpc_handler/transfer_handler.go) [心跳处理](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/server/agent_center/grpctrans/grpc_handler/rawdata_worker.go)
+### 1. Agent 构建时嵌入凭据并校验服务端
+
+- **配置**：Agent 在构建时嵌入 CA、客户端证书和客户端私钥。连接前 `setDialOptions` 解析 PEM 并配置 TLS。
+- **校验**：Agent 使用自定义校验，将对端证书链验证到指定 CA，并验证预期 DNS 名称 `elkeid.com`。
+- **证据**：[Agent 凭据加载](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/agent/transport/connection/product.go)
+- **证据**：[Agent 校验逻辑](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/agent/transport/connection/connection.go)
+
+### 2. AgentCenter 加载服务端凭据并验证客户端证书
+
+- **配置**：AgentCenter 从磁盘加载服务端证书、私钥及客户端信任 CA，要求并验证客户端证书。凭据加载失败会退出。
+- **边界**：TLS 失败发生在 RPC 消息交换前。 gRPC schema 未声明注册、签发、续期和吊销 RPC。该路径中也未找到动态重新加载证书的行为。
+- **部署**：部署路径在构建前提供 Agent 端证书材料，AgentCenter 通过 `server.ssl.certfile`、`server.ssl.keyfile`、`server.ssl.cafile` 提供服务端材料。给定源码显示替换 Agent 嵌入材料需要重新构建并部署，替换服务端配置材料由启动时重新加载。
+- **边界**：项目说明要求两端部署材料配套，未找到自动签发或轮换控制器，以及证书吊销名单或 OCSP 配置。证书生命周期由部署环境提供。
+- **证据**：[Agent 构建说明](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/agent/README.md) [服务端配置读取](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/server/agent_center/common/init.go)
+- **证据**：[AgentCenter TLS](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/server/agent_center/grpctrans/grpc_server.go)
+
+### 3. `agent_id` 作为业务身份完成连接登记
+
+- **身份**：`agent_id` 是业务身份。Agent 在初始化时从显式配置、主机标识材料或本地持久化的 `machine-id` 取得或生成 ID。
+- **处理**：AgentCenter 在 TLS 建立后读取首包 ID，以该 ID 注册在线连接并记录连接来源地址。
+- **配置**：首条 Agent 心跳初始化在线详情并触发当前配置下发。
+- **清理**：流关闭后清理连接和心跳指标。
+- **证据**：[ID 初始化](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/agent/agent/id.go) [流处理](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/server/agent_center/grpctrans/grpc_handler/transfer_handler.go)
+- **证据**：[心跳处理](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/server/agent_center/grpctrans/grpc_handler/rawdata_worker.go)
 
 ### 服务发现字段
 
@@ -73,7 +107,12 @@ Agent 可通过 HTTP GET `/registry/detail` 获取候选地址，随后按服务
 | data[].port | int | `6751`，TCP 端口 |
 | data[].weight | int | 权重，Agent 未用来排序 |
 
-Agent 对缺失成员使用 Go 零值，按响应列表顺序拼接地址。对解析错误、空候选列表或拨号失败进入后续路径。固定服务端 `RegistryDetail` 只读取 query.name，忽略 query.count。name 缺失返回 HTTP 400，body 为 `{"msg":"no server name"}`。其余返回 HTTP 200，body 为 `{"msg":"ok","data":[...]}`，未知服务返回空数组。此路由没有 body.code。服务端返回的其它字段如下，Agent JSON 目的结构会忽略这些字段。 [路由](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/server/service_discovery/server/router.go) [handler](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/server/service_discovery/server/handler/registry.go#L106) [状态刷新与 Registry 结构](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/server/service_discovery/endpoint/endpoint.go)
+- **客户端**：Agent 对缺失成员使用 Go 零值，按响应列表顺序拼接地址。对解析错误、空候选列表或拨号失败进入后续路径。
+- **服务端**：固定服务端 `RegistryDetail` 只读取 query.name，忽略 query.count。
+- **响应**：name 缺失返回 HTTP 400，body 为 `{"msg":"no server name"}`。其余返回 HTTP 200，body 为 `{"msg":"ok","data":[...]}`，未知服务返回空数组。此路由没有 body.code。
+- **边界**：服务端返回的其它字段如下，Agent JSON 目的结构会忽略这些字段。
+- **证据**：[路由](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/server/service_discovery/server/router.go) [handler](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/server/service_discovery/server/handler/registry.go#L106)
+- **证据**：[状态刷新与 Registry 结构](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/server/service_discovery/endpoint/endpoint.go)
 
 | 路径 | JSON 类型 | 语义 |
 |---|---|---|
@@ -109,9 +148,22 @@ Content-Type: application/json; charset=utf-8
 
 ## 遥测传输和失败语义
 
-- Agent 发起 HTTP/2 gRPC 双向流 `/grpc.Transfer/Transfer`，以 Protobuf 批量上报，调用时启用 Snappy。AgentCenter 注册 Snappy、Zstd 和 Gzip 解压支持，设置双向消息上限为 10 MiB。应用层未定义版本协商。批次里的 `version` 表示 Agent 版本。 [Agent 流](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/agent/transport/transfer.go) [服务端配置](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/server/agent_center/grpctrans/grpc_server.go)
-- Agent 每 100 ms 取出内存缓存的全部记录，跳过空批次。缓存上限 2048 条。已编码记录满时回收新记录，内部 `WriteRecord` 路径满时覆盖索引 0。发送后原批次被回收，即使发送返回错误也不进入重传队列。流结束后通常等 5 秒重开，连续取连接失败超过阈值时传输协程退出。 [缓冲区](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/agent/buffer/buffer.go) [发送与重连](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/agent/transport/transfer.go)
-- AgentCenter 按记录封装 Kafka 值，以当前批次的 Agent ID 为 key。任务对账与错误日志记录走额外解码分支，解析或转换失败时跳过该记录。主题取 `kafka.topic`。生产者异步，单条最大配置 4 MiB，超时配置 6 秒，定时 flush 为 10 秒。消息进入生产者输入通道时可能等待；异步生产成功或失败只在服务端消费并记录。遥测流没有批次 ID、持久化确认、偏移恢复或显式去重机制。接入并发配额不足时处理函数返回 `out of max connection limit`；普通 Go error 的状态映射见下文。 [流处理](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/server/agent_center/grpctrans/grpc_handler/transfer_handler.go) [Kafka 生产器](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/server/agent_center/common/kafka/producer.go) [主题配置](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/server/agent_center/common/init.go)
+- **流**：Agent 发起 HTTP/2 gRPC 双向流 `/grpc.Transfer/Transfer`，以 Protobuf 批量上报，调用时启用 Snappy。
+- **服务端**：AgentCenter 注册 Snappy、Zstd 和 Gzip 解压支持，设置双向消息上限为 10 MiB。
+- **边界**：应用层未定义版本协商。批次里的 `version` 表示 Agent 版本。
+- **证据**：[Agent 流](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/agent/transport/transfer.go) [服务端配置](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/server/agent_center/grpctrans/grpc_server.go)
+- **采样**：Agent 每 100 ms 取出内存缓存的全部记录，跳过空批次。缓存上限 2048 条。
+- **容量**：已编码记录满时回收新记录，内部 `WriteRecord` 路径满时覆盖索引 0。
+- **失败**：发送后原批次被回收，即使发送返回错误也不进入重传队列。
+- **重连**：流结束后通常等 5 秒重开，连续取连接失败超过阈值时传输协程退出。
+- **证据**：[缓冲区](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/agent/buffer/buffer.go) [发送与重连](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/agent/transport/transfer.go)
+- **封装**：AgentCenter 按记录封装 Kafka 值，以当前批次的 Agent ID 为 key。
+- **分支**：任务对账与错误日志记录走额外解码分支，解析或转换失败时跳过该记录。
+- **生产者**：主题取 `kafka.topic`。生产者异步，单条最大配置 4 MiB，超时配置 6 秒，定时 flush 为 10 秒。
+- **边界**：消息进入生产者输入通道时可能等待；异步生产成功或失败只在服务端消费并记录。遥测流没有批次 ID、持久化确认、偏移恢复或显式去重机制。
+- **错误**：接入并发配额不足时处理函数返回 `out of max connection limit`；普通 Go error 的状态映射见下文。
+- **证据**：[流处理](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/server/agent_center/grpctrans/grpc_handler/transfer_handler.go)
+- **证据**：[Kafka 生产器](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/server/agent_center/common/kafka/producer.go) [主题配置](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/server/agent_center/common/init.go)
 
 ### Transfer 双端处理
 
@@ -121,7 +173,8 @@ Content-Type: application/json; charset=utf-8
 4. Agent 收到有 `task` 的命令时，按目标分发，再进入下一条。无 `task` 时进入配置分支，标记 running，按名称去重配置，先处理 Agent 自身版本，再同步组件。自身更新成功结束当前 Agent；失败记录 abnormal，随后继续处理组件配置。
 5. Agent 获取连接失败后等待 5 秒重试，连续失败计数到达六次等待后，下次失败退出该协程。已建立流结束则取消同流发送、接收，等待约 5 秒重新打开。成功获取连接即重置获取连接失败计数。退出受上下文取消打断。
 
-[Agent 双端流](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/agent/transport/transfer.go) · [AgentCenter 流入口](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/server/agent_center/grpctrans/grpc_handler/transfer_handler.go) · [连接池](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/server/agent_center/grpctrans/pool/pool.go#L218)
+- **证据**：[Agent 双端流](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/agent/transport/transfer.go) · [AgentCenter 流入口](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/server/agent_center/grpctrans/grpc_handler/transfer_handler.go)
+- **证据**：[连接池](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/server/agent_center/grpctrans/pool/pool.go#L218)
 
 ```mermaid
 stateDiagram-v2
@@ -149,7 +202,11 @@ grpc-message: out of max connection limit
 
 ### Kafka 发布契约
 
-AgentCenter 使用 `kafka.addrs`、`kafka.topic` 建联。若 `kafka.sasl.enable` 为 true，则用部署传入的 `kafka.sasl.username` 和 `kafka.sasl.password`，机制 `PLAIN`。 `SendPBWithKey` 先序列化 `MQData`，再把主题、Agent ID 字符串 key 与消息字节投递到客户端异步通道。 `Metadata` 为 nil。AgentCenter 日志记录 Kafka success 的 topic、partition、offset 或生产错误，上游 Agent 看不到这些值。 [Kafka 初始化](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/server/agent_center/common/init.go) · [生产实现](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/server/agent_center/common/kafka/producer.go)
+- **连接**：AgentCenter 使用 `kafka.addrs`、`kafka.topic` 建联。
+- **认证**：若 `kafka.sasl.enable` 为 true，则用部署传入的 `kafka.sasl.username` 和 `kafka.sasl.password`，机制 `PLAIN`。
+- **发送**：`SendPBWithKey` 先序列化 `MQData`，再把主题、Agent ID 字符串 key 与消息字节投递到客户端异步通道。 `Metadata` 为 nil。
+- **边界**：AgentCenter 日志记录 Kafka success 的 topic、partition、offset 或生产错误，上游 Agent 看不到这些值。
+- **证据**：[Kafka 初始化](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/server/agent_center/common/init.go) · [生产实现](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/server/agent_center/common/kafka/producer.go)
 
 ## 字段字典
 
@@ -227,7 +284,10 @@ Agent 自身任务分支为 `1050` 文件流、`1051` 元数据更新、`1060` �
 | 2 | FileUploadRequest.data | UploadRequest.Data | bytes | 当前文件分段 |
 | 1 | FileUploadResponse.status | UploadResponse.Status | enum | `0 SUCCESS` 完成流处理；`1 FAILED` 服务端文件创建或写入失败分支 |
 
-枚举缺省为 0，因此单凭省略字段无法区分显式 SUCCESS。文件接收结果与管理端对账、后续存储结果有各自的处理分支，不能用 RPC result 推定后续处理成功。客户端收到回应后仅记录状态字符串，未按 SUCCESS、FAILED 或未知值分支。 [文件发送](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/agent/transport/file_ext.go) [文件接收](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/server/agent_center/grpctrans/grpc_handler/file_handler.go)
+- **枚举**：枚举缺省为 0，因此单凭省略字段无法区分显式 SUCCESS。
+- **边界**：文件接收结果与管理端对账、后续存储结果有各自的处理分支，不能用 RPC result 推定后续处理成功。
+- **客户端**：客户端收到回应后仅记录状态字符串，未按 SUCCESS、FAILED 或未知值分支。
+- **证据**：[文件发送](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/agent/transport/file_ext.go) [文件接收](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/server/agent_center/grpctrans/grpc_handler/file_handler.go)
 
 ### Upload 双端处理
 
@@ -261,7 +321,12 @@ grpc-status: 0
 
 ## 记录分类与载荷
 
-`data_type` 为开放 int32。AgentCenter 特判 `1000` Agent 心跳、`1001` 插件心跳、`1010` 与 `1011` 错误日志，以及 `2001`、`2003`、`6000`、`5100`、`5101`、`8010` 任务对账。源码注释分别标明 `5100` 主动资产扫描、`5101` 版本核验、`8010` 基线扫描；其它对账号的具体生产者待核实。未命中特判的类型仍走通用 Kafka 封装。固定提交的公开采集矩阵共 53 个代码和 926 个类型与字段配对，已转录为[采集字段附录](elkeid-fields.md)。发布矩阵可能同时列出外层和处理后字段，逐生产者核对进度见附录。 [接入分派](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/server/agent_center/grpctrans/grpc_handler/rawdata_worker.go) [官方字段矩阵](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/docs/ElkeidData/raw_data_desc.md)
+- **类型**：`data_type` 为开放 int32。
+- **特判**：AgentCenter 特判 `1000` Agent 心跳、`1001` 插件心跳、`1010` 与 `1011` 错误日志，以及 `2001`、`2003`、`6000`、`5100`、`5101`、`8010` 任务对账。
+- **注释**：源码注释分别标明 `5100` 主动资产扫描、`5101` 版本核验、`8010` 基线扫描；其它对账号的具体生产者待核实。
+- **通用路径**：未命中特判的类型仍走通用 Kafka 封装。
+- **矩阵**：固定提交的公开采集矩阵共 53 个代码和 926 个类型与字段配对，已转录为[采集字段附录](elkeid-fields.md)。发布矩阵可能同时列出外层和处理后字段，逐生产者核对进度见附录。
+- **证据**：[接入分派](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/server/agent_center/grpctrans/grpc_handler/rawdata_worker.go) [官方字段矩阵](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/docs/ElkeidData/raw_data_desc.md)
 
 心跳层所有键均位于 `Payload.fields`，线上值为字符串。以下按类型和条件完整列出 Agent 内置心跳生产者的键。
 
@@ -279,7 +344,12 @@ grpc-status: 0
 | 1000 | cpu_usage, mem_usage | 采集成功时写入，为 0–1 比率 |
 | 1001 | name, pversion | 插件名和版本；接收端要求存在 name |
 
-AgentCenter 对心跳中的可解析有限数字进行数值转换，Agent 心跳显式保留 `platform_version`、`version`、`host_serial`、`host_id`、`host_model`、`host_vendor`、`cpu_name` 为字符串。插件心跳保留 `pversion`。两者均补服务端秒级 `last_heartbeat_time`。Agent 详情另补 `agent_id`、`agent_addr`、`create_at`、四类地址数组、`version`、`hostname` 和 `product`。 [资源单位](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/agent/resource/resource.go) [gRPC 统计单位](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/agent/transport/connection/stats_handler.go) [心跳生产](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/agent/heartbeat/heartbeat.go) [状态枚举](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/agent/agent/state.go) [心跳消费](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/server/agent_center/grpctrans/grpc_handler/rawdata_worker.go)
+- **转换**：AgentCenter 对心跳中的可解析有限数字进行数值转换，Agent 心跳显式保留 `platform_version`、`version`、`host_serial`、`host_id`、`host_model`、`host_vendor`、`cpu_name` 为字符串。
+- **插件**：插件心跳保留 `pversion`。
+- **补充字段**：两者均补服务端秒级 `last_heartbeat_time`。Agent 详情另补 `agent_id`、`agent_addr`、`create_at`、四类地址数组、`version`、`hostname` 和 `product`。
+- **证据**：[资源单位](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/agent/resource/resource.go) [gRPC 统计单位](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/agent/transport/connection/stats_handler.go)
+- **证据**：[心跳生产](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/agent/heartbeat/heartbeat.go) [状态枚举](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/agent/agent/state.go)
+- **证据**：[心跳消费](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/server/agent_center/grpctrans/grpc_handler/rawdata_worker.go)
 
 ## 线格式样例
 
@@ -352,4 +422,7 @@ Upload 示例的分段在线上为 15 字节消息体，Agent 按正常上传流
 
 ## 本地协议验证
 
-用两端固定提交的 `grpc.pb.go` 运行临时 Go 测试 `TestTransportWire`，无远程服务依赖。测试确认 Agent 的 `PackagedData` 可由 AgentCenter 解为 `RawData`，嵌套 `Payload.fields` 可解为 `Item.Fields`；服务器的 `Command.Task` 能保留目标名与任务 token，`UploadResponse.FAILED` 能按编号 1 解到 Agent 的同名状态。测试命令 `go test -mod=mod -v .` 通过。本地样本覆盖序列化互操作；TLS 协商、Kafka 落盘与重连未运行端到端部署。
+- **方法**：用两端固定提交的 `grpc.pb.go` 运行临时 Go 测试 `TestTransportWire`，无远程服务依赖。
+- **结果**：测试确认 Agent 的 `PackagedData` 可由 AgentCenter 解为 `RawData`，嵌套 `Payload.fields` 可解为 `Item.Fields`；服务器的 `Command.Task` 能保留目标名与任务 token，`UploadResponse.FAILED` 能按编号 1 解到 Agent 的同名状态。
+- **命令**：测试命令 `go test -mod=mod -v .` 通过。
+- **边界**：本地样本覆盖序列化互操作；TLS 协商、Kafka 落盘与重连未运行端到端部署。

@@ -37,11 +37,38 @@ sequenceDiagram
 
 ## 逐步过程
 
-1. **本地凭据复用**：osquery 从 `kPersistentSettings` 域读取 `nodeKey`，非空即复用；缺失时在锁内调用注册插件。
-2. **注册**：`POST /api/osquery/enroll`，正文含 `enroll_secret`、`host_identifier` 和可选 `host_details`。服务端在一次性密钥启用时先匹配主机属性，否则验证共享密钥，按配置派生主机标识，生成随机 `node_key` 并返回。
-3. **保存**：客户端接受非空字符串 `node_key`，写入本地数据库 `nodeKey`，并记录注册请求前的 Unix 秒 `nodeKeyTime`（字符串存储）。
-4. **运行期请求**：配置、查询下发、结果回传、日志上传与文件采集均携带节点凭据。严格模式在解析 body 前校验 `Authorization: NodeKey`；Body 模式读取 JSON `node_key`。
-5. **失效处理**：响应含 `node_invalid: true` 且为 401 时，客户端清除本地 `nodeKey` 并在下次取凭据时重新注册；`disable_reenrollment` 开启时保留。网络失败、无法解析 JSON、仅含 `error` 或 `node_invalid: false` 均不触发清理。严格请求头模式把认证错误统一映射为带 `node_invalid: true` 的 401。
+### 1. osquery 读取本地凭据
+
+- **执行方**：osquery，从本地数据库 `kPersistentSettings` 域读取 `nodeKey`
+- **有值**：直接复用，不发起注册
+- **缺失**：在注册锁内调用注册插件进入注册流程
+
+### 2. osquery 向 Fleet Server 注册
+
+- **发起方**：osquery → Fleet Server
+- **请求**：`POST /api/osquery/enroll`；请求体 `enroll_secret`、`host_identifier`、可选 `host_details`
+- **处理**：Fleet Server 在启用一次性密钥时先匹配主机属性，否则验证共享密钥；按配置派生主机标识，生成随机 `node_key`
+- **响应**：`node_key` 返回给 osquery
+
+### 3. osquery 保存节点凭据
+
+- **执行方**：osquery
+- **条件**：响应中的 `node_key` 为非空字符串
+- **落盘**：写入本地数据库 `nodeKey`，记录注册请求发起前的 Unix 秒为 `nodeKeyTime`（字符串存储）
+
+### 4. osquery 发起运行期请求
+
+- **发起方**：osquery → Fleet Server
+- **场景**：配置、查询结果读取、结果回传、日志上传、文件采集，均携带节点凭据
+- **严格请求头模式**：解析请求体前校验 `Authorization: NodeKey <key>`
+- **Body 模式**：从 JSON 中读取 `node_key`
+
+### 5. osquery 处理凭据失效
+
+- **触发**：Fleet Server 返回 401 且响应含 `node_invalid: true`
+- **处理**：osquery 清除本地 `nodeKey`，下次取凭据时重新注册；启用 `disable_reenrollment` 时保留
+- **不触发**：网络失败、JSON 无法解析、仅含 `error`、`node_invalid: false`
+- **边界**：严格请求头模式把认证错误统一映射为带 `node_invalid: true` 的 401
 
 ## 失败与重试
 

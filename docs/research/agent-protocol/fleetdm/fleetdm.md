@@ -4,12 +4,61 @@
 
 ## 注册与认证
 
-1. Orbit 的 `FleetFlags` 为 osquery 配置 TLS 地址及注册、配置、日志和分布式查询插件路径。下文采用主路径 `/api/osquery`。服务端还接受 `/api/v1/osquery` 别名，Orbit 使用别名。这里的 `v1` 不参与 Fleet 管理 API 的版本协商。 [Agent flags](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/orbit/pkg/osquery/flags.go) · [服务端 handler.go](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/handler.go#L850-L908)
-2. `POST /api/osquery/enroll` 提交注册密钥和主机标识。服务端 `EnrollOsquery` 在一次性密钥功能启用时先查对应记录并匹配主机属性。常规路径验证共享密钥，取所属团队。随后按配置派生主机标识。已关联身份凭据的主机还需通过 HTTP 消息签名凭据匹配。服务端按配置长度生成随机节点密钥，绑定主机记录并返回给 Agent。 [注册实现](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/osquery.go#L140-L275)
-3. 配置、查询和日志请求使用节点密钥。允许 body 认证的路径保留 `node_key`。严格模式在解析 body 前要求 `Authorization: NodeKey <key>`，缺失、格式错误或无效回 401 和 `node_invalid: true`。`AuthenticateHost` 按密钥查询主机，WebSocket 启用时可在 osquery 密钥未命中后查询同一主机的 Orbit 密钥。关联身份凭据时额外验签，认证成功后异步记录最近上线时间。 [请求头认证](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/osquery_header_auth.go#L50-L128) · [服务端认证](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/osquery.go#L74-L136)
-4. Agent 端以 osquery `5.18.1` 为固定源码样本。Orbit 的更新器可从发布通道解析实际安装的 osquery，因此部署中的精确版本需核对客户端产物。样本的 TLS 注册插件从文件或环境变量读取注册密钥，提交主机属性，接受非空字符串 `node_key`，仅在该字段缺失时尝试兼容字段 `id`。osquery 先从本地数据库 `kPersistentSettings` 域读取 `nodeKey`，非空即复用。缺失时在锁内调用注册插件，保存 `nodeKey` 及 `nodeKeyTime`（注册请求前的 Unix 秒数，以字符串存储）。[Orbit 通道更新](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/orbit/pkg/update/runner.go#L127-L172) · [注册插件](https://github.com/osquery/osquery/blob/5.18.1/plugins/remote/enroll/tls_enroll.cpp#L124-L165) · [本地凭据](https://github.com/osquery/osquery/blob/5.18.1/osquery/remote/enroll/enroll.cpp#L65-L128)
-5. 已解析的 JSON 响应含布尔值 `node_invalid: true` 时，客户端报告节点密钥无效。默认清除本地 `nodeKey`，后续获取节点密钥时重新注册。启用 `disable_reenrollment` 时保留本地密钥。网络失败、无法解析 JSON、仅含 `error` 或 `node_invalid: false` 均不触发这一清除分支。在 Body 认证路径中，已绑定身份的主机验签失败返回 HTTP 401，省略 `node_invalid`。严格请求头认证的外层会把认证错误统一映射到带 `node_invalid: true` 的 401。 [客户端处理](https://github.com/osquery/osquery/blob/5.18.1/osquery/remote/utility.h#L139-L179) · [开关默认值](https://github.com/osquery/osquery/blob/5.18.1/osquery/remote/enroll/enroll.cpp#L50-L54) · [服务端身份验证](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/osquery.go#L114-L125)
-6. 管理端 `DELETE /api/v1/fleet/hosts/{id}` 接收十进制主机 ID，执行列表权限与目标主机删除权限检查，然后删除主机记录。该路径顺带使该记录的节点密钥失去查找目标。成功返回空 JSON 对象，错误由通用管理 API 编码。重新注册命中已有主机时，在事务里覆盖 `hosts.node_key`，同时更新 `last_enrolled_at`，旧密钥失效。节点密钥处理路径未定义独立的刷新令牌或周期性续期。 [删除路由](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/handler.go#L496) · [删除逻辑](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/hosts.go#L1194-L1255) · [密钥覆盖](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/datastore/mysql/hosts.go#L3154-L3186)
+### 1. Orbit 配置 TLS 插件路径
+
+- **配置**：Orbit 的 `FleetFlags` 为 osquery 配置 TLS 地址及注册、配置、日志和分布式查询插件路径。
+- **路径**：下文采用主路径 `/api/osquery`。
+- **别名**：服务端还接受 `/api/v1/osquery` 别名，Orbit 使用别名。
+- **边界**：这里的 `v1` 不参与 Fleet 管理 API 的版本协商。
+- **证据**：[Agent flags](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/orbit/pkg/osquery/flags.go) · [服务端 handler.go](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/handler.go#L850-L908)
+
+### 2. 注册请求与节点密钥签发
+
+- **请求**：`POST /api/osquery/enroll` 提交注册密钥和主机标识。
+- **处理**：服务端 `EnrollOsquery` 在一次性密钥功能启用时先查对应记录并匹配主机属性。
+- **常规路径**：常规路径验证共享密钥，取所属团队。随后按配置派生主机标识。
+- **身份绑定**：已关联身份凭据的主机还需通过 HTTP 消息签名凭据匹配。
+- **响应**：服务端按配置长度生成随机节点密钥，绑定主机记录并返回给 Agent。
+- **证据**：[注册实现](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/osquery.go#L140-L275)
+
+### 3. 节点密钥认证
+
+- **场景**：配置、查询和日志请求使用节点密钥。
+- **Body 模式**：允许 body 认证的路径保留 `node_key`。
+- **严格模式**：严格模式在解析 body 前要求 `Authorization: NodeKey <key>`，缺失、格式错误或无效回 401 和 `node_invalid: true`。
+- **处理**：`AuthenticateHost` 按密钥查询主机，WebSocket 启用时可在 osquery 密钥未命中后查询同一主机的 Orbit 密钥。
+- **边界**：关联身份凭据时额外验签，认证成功后异步记录最近上线时间。
+- **证据**：[请求头认证](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/osquery_header_auth.go#L50-L128) · [服务端认证](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/osquery.go#L74-L136)
+
+### 4. Agent 端源码样本与本地凭据
+
+- **样本**：Agent 端以 osquery `5.18.1` 为固定源码样本。
+- **边界**：Orbit 的更新器可从发布通道解析实际安装的 osquery，因此部署中的精确版本需核对客户端产物。
+- **注册插件**：样本的 TLS 注册插件从文件或环境变量读取注册密钥，提交主机属性，接受非空字符串 `node_key`，仅在该字段缺失时尝试兼容字段 `id`。
+- **本地读取**：osquery 先从本地数据库 `kPersistentSettings` 域读取 `nodeKey`，非空即复用。
+- **缺失处理**：缺失时在锁内调用注册插件，保存 `nodeKey` 及 `nodeKeyTime`（注册请求前的 Unix 秒数，以字符串存储）。
+- **证据**：[Orbit 通道更新](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/orbit/pkg/update/runner.go#L127-L172)
+- **证据**：[注册插件](https://github.com/osquery/osquery/blob/5.18.1/plugins/remote/enroll/tls_enroll.cpp#L124-L165) · [本地凭据](https://github.com/osquery/osquery/blob/5.18.1/osquery/remote/enroll/enroll.cpp#L65-L128)
+
+### 5. 节点密钥失效判定
+
+- **触发**：已解析的 JSON 响应含布尔值 `node_invalid: true` 时，客户端报告节点密钥无效。
+- **处理**：默认清除本地 `nodeKey`，后续获取节点密钥时重新注册。
+- **边界**：启用 `disable_reenrollment` 时保留本地密钥。网络失败、无法解析 JSON、仅含 `error` 或 `node_invalid: false` 均不触发这一清除分支。
+- **Body 模式**：在 Body 认证路径中，已绑定身份的主机验签失败返回 HTTP 401，省略 `node_invalid`。
+- **严格模式**：严格请求头认证的外层会把认证错误统一映射到带 `node_invalid: true` 的 401。
+- **证据**：[客户端处理](https://github.com/osquery/osquery/blob/5.18.1/osquery/remote/utility.h#L139-L179) · [开关默认值](https://github.com/osquery/osquery/blob/5.18.1/osquery/remote/enroll/enroll.cpp#L50-L54)
+- **证据**：[服务端身份验证](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/osquery.go#L114-L125)
+
+### 6. 管理端删除与密钥覆盖
+
+- **请求**：管理端 `DELETE /api/v1/fleet/hosts/{id}` 接收十进制主机 ID，执行列表权限与目标主机删除权限检查，然后删除主机记录。
+- **边界**：该路径顺带使该记录的节点密钥失去查找目标。
+- **响应**：成功返回空 JSON 对象，错误由通用管理 API 编码。
+- **重新注册**：重新注册命中已有主机时，在事务里覆盖 `hosts.node_key`，同时更新 `last_enrolled_at`，旧密钥失效。
+- **结论**：节点密钥处理路径未定义独立的刷新令牌或周期性续期。
+- **证据**：[删除路由](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/handler.go#L496) · [删除逻辑](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/hosts.go#L1194-L1255)
+- **证据**：[密钥覆盖](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/datastore/mysql/hosts.go#L3154-L3186)
 
 ## 注册字段字典
 
@@ -38,9 +87,18 @@ Fleet 的 osquery 错误编码器输出 `error`、`uuid`，无效节点分支另
 
 ## 管理端注册密钥接口
 
-全局密钥通过 `GET /api/v1/fleet/spec/enroll_secret` 读取和 `POST /api/v1/fleet/spec/enroll_secret` 应用。管理端验证对应读写权限，应用时替换全局凭据集合，上限 50 项。字符串去首尾空白后不能为空。试运行仅检查合法性和密钥是否可用。已有 osquery 节点使用注册所得的独立节点密钥，替换注册密钥集合只影响后续注册验证。 [路由](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/handler.go#L351-L367) · [全局实现](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/appconfig.go#L3109-L3219)
+- **读取与应用**：全局密钥通过 `GET /api/v1/fleet/spec/enroll_secret` 读取和 `POST /api/v1/fleet/spec/enroll_secret` 应用。
+- **权限与上限**：管理端验证对应读写权限，应用时替换全局凭据集合，上限 50 项。
+- **校验**：字符串去首尾空白后不能为空。
+- **试运行**：试运行仅检查合法性和密钥是否可用。
+- **边界**：已有 osquery 节点使用注册所得的独立节点密钥，替换注册密钥集合只影响后续注册验证。
+- **证据**：[路由](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/handler.go#L351-L367) · [全局实现](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/appconfig.go#L3109-L3219)
 
-有企业许可时，`GET /api/v1/fleet/fleets/{id}/secrets` 读取指定 Fleet 的密钥，`PATCH /api/v1/fleet/fleets/{fleet_id}/secrets` 替换指定 Fleet 的密钥集合。请求的空数组应用空集合，缺失或 null 会报参数错误。每项仅采用 `secret`，所属 Fleet 取自 URL。基础版委托实现返回缺少许可。 [请求和响应](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/teams.go#L443-L496) · [企业版实现](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/ee/server/service/teams.go#L1328-L1415)
+- **条件与路由**：有企业许可时，`GET /api/v1/fleet/fleets/{id}/secrets` 读取指定 Fleet 的密钥，`PATCH /api/v1/fleet/fleets/{fleet_id}/secrets` 替换指定 Fleet 的密钥集合。
+- **请求**：请求的空数组应用空集合，缺失或 null 会报参数错误。
+- **字段与来源**：每项仅采用 `secret`，所属 Fleet 取自 URL。
+- **边界**：基础版委托实现返回缺少许可。
+- **证据**：[请求和响应](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/teams.go#L443-L496) · [企业版实现](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/ee/server/service/teams.go#L1328-L1415)
 
 | 路径 | 线上类型与约束 | 含义 |
 |---|---|---|
@@ -53,7 +111,8 @@ Fleet 的 osquery 错误编码器输出 `error`、`uuid`，无效节点分支另
 | 全局 POST 查询 `dry_run` | boolean，可省略，默认 false | true 时只校验 |
 | 管理错误 `message`、`code`、`errors[]`、`uuid` | string、可选 integer、可选对象数组、可选 string | 错误线上信封。常规 `errors[].name` 与 `errors[].reason` 是字符串。全局应用成功响应为空对象 |
 
-字段定义为 `EnrollSecret` 和 `EnrollSecretSpec`，失败由 [通用错误编码器](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/platform/endpointer/transport_error.go#L28-L46) 编码。 [类型与上限](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/fleet/app.go#L2130-L2177)
+- **字段定义**：字段定义为 `EnrollSecret` 和 `EnrollSecretSpec`，失败由 [通用错误编码器](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/platform/endpointer/transport_error.go#L28-L46) 编码。
+- **证据**：[类型与上限](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/fleet/app.go#L2130-L2177)
 
 ## 数据面与控制面
 
@@ -64,7 +123,11 @@ Fleet 的 osquery 错误编码器输出 `error`、`uuid`，无效节点分支另
 | `/api/osquery/distributed/write` | Agent 上传查询结果、状态、消息及统计。服务端将其转换为类型化结果，并按查询用途分派 | 成功响应无逐查询接收编号，失败走错误编码 |
 | `/api/osquery/log` | Agent 批量上传状态或结果。服务端由 `log_type` 分派，结果日志的目标输出错误可回给 osqueryd | 整批响应，无逐条确认字段 |
 
-Body 认证模式对日志和查询上传分别配置请求体大小上限。严格请求头模式先认证，这两条路由跳过路由级大小限制。Orbit 配置分布式查询 TLS 尝试上限 10，按 osquery 版本决定是否启用 TLS gzip 接收。部署中的跨连接排序和接收端去重仍待核实。 [路由](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/handler.go#L850-L908) · [Agent flags](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/orbit/pkg/osquery/flags.go)
+- **Body 模式**：Body 认证模式对日志和查询上传分别配置请求体大小上限。
+- **严格模式**：严格请求头模式先认证，这两条路由跳过路由级大小限制。
+- **配置**：Orbit 配置分布式查询 TLS 尝试上限 10，按 osquery 版本决定是否启用 TLS gzip 接收。
+- **待核实**：部署中的跨连接排序和接收端去重仍待核实。
+- **证据**：[路由](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/handler.go#L850-L908) · [Agent flags](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/orbit/pkg/osquery/flags.go)
 
 | 路径（省略共用的 `node_key`） | 类型与约束 | 含义 |
 |---|---|---|
@@ -83,15 +146,28 @@ Body 认证模式对日志和查询上传分别配置请求体大小上限。严
 | log 请求 `data[]` | JSON 数组，每项在入口解码为 RawMessage | 状态或结果日志，结果预处理字段见下表 |
 | 写入错误 `error` | string，失败时返回 | 批次诊断文本，连同 `uuid` 和条件性的 `node_invalid` 编码 |
 
-字段对应 `getClientConfigRequest`、`getDistributedQueriesResponse`、`submitDistributedQueryResultsRequestShim.toRequest`、`Stats`、`submitLogsRequest` 与 `submitLogsEndpoint`。 [配置](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/osquery.go#L444-L488) · [查询下发](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/osquery.go#L1136-L1149) · [查询回传](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/osquery.go#L1715-L1805) · [统计](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/fleet/osquery.go#L14-L31) · [日志](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/osquery.go#L3953-L3994)
+- **字段**：字段对应 `getClientConfigRequest`、`getDistributedQueriesResponse`、`submitDistributedQueryResultsRequestShim.toRequest`、`Stats`、`submitLogsRequest` 与 `submitLogsEndpoint`。
+- **证据**：[配置](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/osquery.go#L444-L488) · [查询下发](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/osquery.go#L1136-L1149)
+- **证据**：[查询回传](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/osquery.go#L1715-L1805) · [统计](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/fleet/osquery.go#L14-L31)
+- **证据**：[日志](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/osquery.go#L3953-L3994)
 
 ### 日志批次的缓冲与字段
 
 查询统计单位按 osquery 样本的 `recordQueryPerformance` 与 `processes` 表定义核对。 [性能计算](https://github.com/osquery/osquery/blob/5.18.1/osquery/distributed/distributed.cpp#L380-L446) · [进程表单位](https://github.com/osquery/osquery/blob/5.18.1/specs/processes.table#L20-L23)
 
-osquery 5.18.1 在 `kLogs` 本地数据库域存放日志，按状态、结果两组发送。TLS 插件默认每 4 秒最多取 1024 行，单行上限 1 MiB。超长或非法 JSON 行在构造批次时跳过。`logger_tls_compress` 可启用请求体 gzip，默认关闭。失败留在缓冲区并按组退避，默认退避上限 3600 秒。成功后清理对应数据库记录，缓冲超限清理旧日志。服务端按批回应，协议无逐行确认或端到端幂等键。 [TLS 插件](https://github.com/osquery/osquery/blob/5.18.1/plugins/logger/tls_logger.cpp) · [缓冲实现](https://github.com/osquery/osquery/blob/5.18.1/plugins/logger/buffered.cpp) · [加速窗口](https://github.com/osquery/osquery/blob/5.18.1/osquery/distributed/distributed.cpp#L348-L360)
+- **存储**：osquery 5.18.1 在 `kLogs` 本地数据库域存放日志，按状态、结果两组发送。
+- **批次上限**：TLS 插件默认每 4 秒最多取 1024 行，单行上限 1 MiB。超长或非法 JSON 行在构造批次时跳过。
+- **压缩**：`logger_tls_compress` 可启用请求体 gzip，默认关闭。
+- **失败与清理**：失败留在缓冲区并按组退避，默认退避上限 3600 秒。成功后清理对应数据库记录，缓冲超限清理旧日志。
+- **边界**：服务端按批回应，协议无逐行确认或端到端幂等键。
+- **证据**：[TLS 插件](https://github.com/osquery/osquery/blob/5.18.1/plugins/logger/tls_logger.cpp) · [缓冲实现](https://github.com/osquery/osquery/blob/5.18.1/plugins/logger/buffered.cpp) · [加速窗口](https://github.com/osquery/osquery/blob/5.18.1/osquery/distributed/distributed.cpp#L348-L360)
 
-服务端将状态日志交给配置的状态输出，输出错误可返回 413。结果预处理以 `ScheduledQueryResult` 读取下表字段。服务端根据主机调度检查结果，将符合条件的结果保存为查询报告或转发至外部日志目的地。外部写失败会回给客户端重试，内部结果处理错误采用不同处理路径。外部目的地扩展及重复投递的持久化结果仍待核实。 [结果类型](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/fleet/query_results.go) · [服务器处理](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/osquery.go#L4012-L4258)
+- **状态日志**：服务端将状态日志交给配置的状态输出，输出错误可返回 413。
+- **结果预处理**：结果预处理以 `ScheduledQueryResult` 读取下表字段。
+- **处理**：服务端根据主机调度检查结果，将符合条件的结果保存为查询报告或转发至外部日志目的地。
+- **错误路径**：外部写失败会回给客户端重试，内部结果处理错误采用不同处理路径。
+- **待核实**：外部目的地扩展及重复投递的持久化结果仍待核实。
+- **证据**：[结果类型](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/fleet/query_results.go) · [服务器处理](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/osquery.go#L4012-L4258)
 
 状态日志的生产端字段如下。Fleet 入口接收原始 JSON，未按此枚举校验。 [状态序列化](https://github.com/osquery/osquery/blob/5.18.1/plugins/logger/buffered.cpp#L247) · [严重度枚举](https://github.com/osquery/osquery/blob/5.18.1/osquery/core/plugins/logger.h#L40-L45)
 
@@ -140,7 +216,14 @@ osquery 生产端还发送以下字段。类型化预处理会忽略额外字段
 
 ## 文件采集上传
 
-Agent 将已选择的文件归档为 tar，可按 `carver_compression` 启用 zstd，默认关闭。随后向 `POST /api/osquery/carve/begin` 提交元数据，服务端校验总长度与块划分、建立存储会话并返回非空会话 ID。Agent 从 `block_id=0` 顺序向 `POST /api/osquery/carve/block` 上传。服务端校验会话与请求关联，严格认证模式额外校验主机归属，只接收下一个预期块。osquery 5.18.1 的 `postCarve` 在单块提交失败时记录日志并继续循环，没有同块重试或恢复上传偏移。循环结束写本地成功状态，因此本地状态不能确认所有块已持久化。两路由均有 `/api/v1/osquery` 别名。 [Agent 归档](https://github.com/osquery/osquery/blob/5.18.1/osquery/carver/carver.cpp#L175-L225) · [上传实现](https://github.com/osquery/osquery/blob/5.18.1/osquery/carver/carver.cpp#L288-L363) · [路由](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/handler.go) · [服务端处理](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/carves.go#L115-L438)
+- **归档**：Agent 将已选择的文件归档为 tar，可按 `carver_compression` 启用 zstd，默认关闭。
+- **建立会话**：随后向 `POST /api/osquery/carve/begin` 提交元数据，服务端校验总长度与块划分、建立存储会话并返回非空会话 ID。
+- **上传**：Agent 从 `block_id=0` 顺序向 `POST /api/osquery/carve/block` 上传。
+- **服务端校验**：服务端校验会话与请求关联，严格认证模式额外校验主机归属，只接收下一个预期块。
+- **失败处理**：osquery 5.18.1 的 `postCarve` 在单块提交失败时记录日志并继续循环，没有同块重试或恢复上传偏移。
+- **边界**：循环结束写本地成功状态，因此本地状态不能确认所有块已持久化。两路由均有 `/api/v1/osquery` 别名。
+- **证据**：[Agent 归档](https://github.com/osquery/osquery/blob/5.18.1/osquery/carver/carver.cpp#L175-L225) · [上传实现](https://github.com/osquery/osquery/blob/5.18.1/osquery/carver/carver.cpp#L288-L363)
+- **证据**：[路由](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/handler.go) · [服务端处理](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/carves.go#L115-L438)
 
 | 路径 | 类型、默认值与约束 | 含义与示例 |
 |---|---|---|
@@ -202,7 +285,12 @@ sequenceDiagram
 
 [注册失败分支](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/osquery.go#L179-L243) · [严格模式前置认证](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/osquery_header_auth.go#L75-L94)
 
-`GET`、`HEAD` 等方法不能替代这些 Agent JSON POST。配置的 `etag` 是正文成员。未发送或发送 null 时返回完整、无验证器的配置。空字符串请求生成并返回验证器。现有非空验证器匹配时只返回 `{"etag":"ok"}`，有差异时返回新的完整配置及验证器。完整配置成员由 Agent Options、计划查询和部署设定决定，不能把示例的配置当做完整 osquery 配置 schema。Fleet 默认的 Body 认证路由大小上限为查询回传 5 MiB、日志 10 MiB，严格认证路由跳过这两项路由级限制。 [配置处理](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/osquery.go#L444-L591) · [大小上限](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/fleet/request.go#L40-L51)
+- **请求方法**：`GET`、`HEAD` 等方法不能替代这些 Agent JSON POST。
+- **字段**：配置的 `etag` 是正文成员。
+- **条件返回**：未发送或发送 null 时返回完整、无验证器的配置。空字符串请求生成并返回验证器。现有非空验证器匹配时只返回 `{"etag":"ok"}`，有差异时返回新的完整配置及验证器。
+- **边界**：完整配置成员由 Agent Options、计划查询和部署设定决定，不能把示例的配置当做完整 osquery 配置 schema。
+- **大小上限**：Fleet 默认的 Body 认证路由大小上限为查询回传 5 MiB、日志 10 MiB，严格认证路由跳过这两项路由级限制。
+- **证据**：[配置处理](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/osquery.go#L444-L591) · [大小上限](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/fleet/request.go#L40-L51)
 
 ## 请求和响应示例
 

@@ -1,6 +1,14 @@
 # AIDR 已引用的 wazuh-agent 实验实现
 
-本章固定到独立仓库 `wazuh/wazuh-agent` 的 `ca211324af5c88caf77fcd57cab0e98475f8e4ce`。AIDR 既有调研引用该版本的多类型队列。本章的 HTTP 接口来自这个版本的 Agent 实现和配套消息文档。管理端处理只能从接口契约与本仓库测试替身核对，生产端配对留作未验证。正式 4.x Agent 与 Manager 配对另见 [Wazuh 4.x 调研](../wazuh/wazuh.md)。 [固定仓库](https://github.com/wazuh/wazuh-agent/tree/ca211324af5c88caf77fcd57cab0e98475f8e4ce) · [AIDR 既有调研](../../research.md)
+本章固定到独立仓库 `wazuh/wazuh-agent` 的 `ca211324af5c88caf77fcd57cab0e98475f8e4ce`。
+
+AIDR 既有调研引用该版本的多类型队列。
+
+本章的 HTTP 接口来自这个版本的 Agent 实现和配套消息文档。
+
+管理端处理只能从接口契约与本仓库测试替身核对，生产端配对留作未验证。
+
+正式 4.x Agent 与 Manager 配对另见 [Wazuh 4.x 调研](../wazuh/wazuh.md)。 [固定仓库](https://github.com/wazuh/wazuh-agent/tree/ca211324af5c88caf77fcd57cab0e98475f8e4ce) · [AIDR 既有调研](../../../archive/research/research.md)
 
 ## 接口目录
 
@@ -46,7 +54,9 @@ sequenceDiagram
 2. Agent 用该令牌以 Bearer 方式调用 `POST /agents`，提交自身元数据。仅 HTTP 201 时调用 `AgentInfo.Save`。该方法重置存储默认值后保存名称、密钥、UUID、组列表。响应正文没有客户端依赖字段。 [元数据及持久化实现](https://github.com/wazuh/wazuh-agent/blob/ca211324af5c88caf77fcd57cab0e98475f8e4ce/src/agent/agent_info/src/agent_info.cpp)
 3. 运行期 Agent 转向通信 API，向 `POST /api/v1/authentication` 提交 `uuid` 和 `key`。客户端接受 2xx 中的顶层 `token`，读取 JWT `exp`。在到期前 2 秒唤醒更新。业务接口返回 401 或 403 时触发重新鉴权。JWT 签发、服务端密钥存储和服务端吊销行为需要配套服务端源码确认。
 
-[消息文档](https://github.com/wazuh/wazuh-agent/blob/ca211324af5c88caf77fcd57cab0e98475f8e4ce/docs/ref/messages.md) · [注册实现](https://github.com/wazuh/wazuh-agent/blob/ca211324af5c88caf77fcd57cab0e98475f8e4ce/src/agent/src/agent_enrollment.cpp) · [运行期认证](https://github.com/wazuh/wazuh-agent/blob/ca211324af5c88caf77fcd57cab0e98475f8e4ce/src/agent/communicator/src/communicator.cpp)
+- [消息文档](https://github.com/wazuh/wazuh-agent/blob/ca211324af5c88caf77fcd57cab0e98475f8e4ce/docs/ref/messages.md)
+- [注册实现](https://github.com/wazuh/wazuh-agent/blob/ca211324af5c88caf77fcd57cab0e98475f8e4ce/src/agent/src/agent_enrollment.cpp)
+- [运行期认证](https://github.com/wazuh/wazuh-agent/blob/ca211324af5c88caf77fcd57cab0e98475f8e4ce/src/agent/communicator/src/communicator.cpp)
 
 | 字段或头部 | 类型与条件 | 含义 |
 |---|---|---|
@@ -65,7 +75,12 @@ sequenceDiagram
 
 ## 数据上传与命令
 
-HTTP 客户端支持 `http` 和 `https`，按 scheme 使用默认端口 80 或 443。非空请求体使用 `Content-Type: application/json`，事件批次的正文按下述换行格式组装。命令和上报请求循环遇到 401/403 更新令牌。发送失败时该轮未触发成功回调，队列批次继续保留。默认循环和超时分支等待 1 秒，其他失败按设定的重试间隔等待。 [HTTP 构造](https://github.com/wazuh/wazuh-agent/blob/ca211324af5c88caf77fcd57cab0e98475f8e4ce/src/agent/http_client/src/http_client.cpp) · [请求循环](https://github.com/wazuh/wazuh-agent/blob/ca211324af5c88caf77fcd57cab0e98475f8e4ce/src/agent/communicator/src/communicator.cpp)
+- **协议**：HTTP 客户端支持 `http` 和 `https`，按 scheme 使用默认端口 80 或 443。
+- **正文**：非空请求体使用 `Content-Type: application/json`，事件批次的正文按下述换行格式组装。
+- **重试**：命令和上报请求循环遇到 401/403 更新令牌。
+- **队列**：发送失败时该轮未触发成功回调，队列批次继续保留。
+- **等待**：默认循环和超时分支等待 1 秒，其他失败按设定的重试间隔等待。
+- **证据**：[HTTP 构造](https://github.com/wazuh/wazuh-agent/blob/ca211324af5c88caf77fcd57cab0e98475f8e4ce/src/agent/http_client/src/http_client.cpp) · [请求循环](https://github.com/wazuh/wazuh-agent/blob/ca211324af5c88caf77fcd57cab0e98475f8e4ce/src/agent/communicator/src/communicator.cpp)
 
 | 方法与路径 | 请求及结果 |
 |---|---|
@@ -74,7 +89,16 @@ HTTP 客户端支持 `http` 和 `https`，按 scheme 使用默认端口 80 或 4
 | `GET /api/v1/commands` | Bearer，空正文。客户端读取 `commands[]`，仅数组会加入队列 |
 | `GET /api/v1/files?file_name=<name>` | Bearer，`file_name` 为组配置文件名，成功正文按字节保存 |
 
-事件批次的队列序列化先写可用的 Agent 元数据，再按队列顺序用换行拼接每条非空 `metaData` 及序列化 `data`，空对象被省略。元数据包以 `agent` 为对象键，复用注册的 `id`、`name`、`type`、`version` 和 `host`，另有 `agent.groups[]`，值为组名字符串。事件 `data` 的字段取决于模块。`MessageType` 是 Agent 内部枚举，依声明顺序为 `STATELESS=0`、`STATEFUL=1`、`COMMAND=2`，远程数据路径由 URL 表达类别。`moduleName` 和 `moduleType` 属于本地队列结构。`commands[].document_id` 为 string，`commands[].action.name` 为 string，`commands[].action.args` 为 object，缺失或类型不符合时本地提取默认为空字符串或空对象。当前客户端的成功处理以 HTTP 状态触发，服务端是否幂等及是否逐条持久化需要配套实现确认。 [发送实现](https://github.com/wazuh/wazuh-agent/blob/ca211324af5c88caf77fcd57cab0e98475f8e4ce/src/agent/communicator/src/communicator.cpp) · [批次序列化与命令提取](https://github.com/wazuh/wazuh-agent/blob/ca211324af5c88caf77fcd57cab0e98475f8e4ce/src/agent/src/message_queue_utils.cpp) · [本地枚举定义](https://github.com/wazuh/wazuh-agent/blob/ca211324af5c88caf77fcd57cab0e98475f8e4ce/src/agent/multitype_queue/include/message_entry/message.hpp)
+- **批次序列化**：事件批次的队列序列化先写可用的 Agent 元数据，再按队列顺序用换行拼接每条非空 `metaData` 及序列化 `data`，空对象被省略。
+- **元数据包**：元数据包以 `agent` 为对象键，复用注册的 `id`、`name`、`type`、`version` 和 `host`，另有 `agent.groups[]`，值为组名字符串。
+- **事件数据**：事件 `data` 的字段取决于模块。
+- **消息类型**：`MessageType` 是 Agent 内部枚举，依声明顺序为 `STATELESS=0`、`STATEFUL=1`、`COMMAND=2`，远程数据路径由 URL 表达类别。
+- **本地字段**：`moduleName` 和 `moduleType` 属于本地队列结构。
+- **命令提取**：`commands[].document_id` 为 string，`commands[].action.name` 为 string，`commands[].action.args` 为 object，缺失或类型不符合时本地提取默认为空字符串或空对象。
+- **边界**：当前客户端的成功处理以 HTTP 状态触发，服务端是否幂等及是否逐条持久化需要配套实现确认。
+- **证据**：[发送实现](https://github.com/wazuh/wazuh-agent/blob/ca211324af5c88caf77fcd57cab0e98475f8e4ce/src/agent/communicator/src/communicator.cpp)
+- **证据**：[批次序列化与命令提取](https://github.com/wazuh/wazuh-agent/blob/ca211324af5c88caf77fcd57cab0e98475f8e4ce/src/agent/src/message_queue_utils.cpp)
+- **证据**：[本地枚举定义](https://github.com/wazuh/wazuh-agent/blob/ca211324af5c88caf77fcd57cab0e98475f8e4ce/src/agent/multitype_queue/include/message_entry/message.hpp)
 
 ## 交互案例
 
@@ -175,7 +199,12 @@ Content-Length: 0
 
 ### 事件批次的真实消息边界
 
-`POST /api/v1/events/stateful` 请求使用通信主机和 `Authorization: Bearer <运行期令牌>`。此批次含一个命令执行结果。第一行是 Agent 元数据，第二行是该记录的元数据，第三行是单元素数组。每行一个完整 JSON 值，行间为 LF。换行具有分隔含义，逐行 JSON 需以紧凑格式发送。示例包含命令失败结果，HTTP 200 仅表示 Agent 可以清理已经发出的队列条目。 [队列序列化](https://github.com/wazuh/wazuh-agent/blob/ca211324af5c88caf77fcd57cab0e98475f8e4ce/src/agent/src/message_queue_utils.cpp) · [结果生成](https://github.com/wazuh/wazuh-agent/blob/ca211324af5c88caf77fcd57cab0e98475f8e4ce/src/agent/src/command_handler_utils.cpp)
+- **请求**：`POST /api/v1/events/stateful` 请求使用通信主机和 `Authorization: Bearer <运行期令牌>`。
+- **批次**：此批次含一个命令执行结果。第一行是 Agent 元数据，第二行是该记录的元数据，第三行是单元素数组。
+- **消息边界**：每行一个完整 JSON 值，行间为 LF。
+- **格式**：换行具有分隔含义，逐行 JSON 需以紧凑格式发送。
+- **示例边界**：示例包含命令失败结果，HTTP 200 仅表示 Agent 可以清理已经发出的队列条目。
+- **证据**：[队列序列化](https://github.com/wazuh/wazuh-agent/blob/ca211324af5c88caf77fcd57cab0e98475f8e4ce/src/agent/src/message_queue_utils.cpp) · [结果生成](https://github.com/wazuh/wazuh-agent/blob/ca211324af5c88caf77fcd57cab0e98475f8e4ce/src/agent/src/command_handler_utils.cpp)
 
 ```ndjson
 {"agent":{"groups":[],"id":"0194857f-39b5-7bfb-a7bc-c5c6835f03d1","name":"example-host","type":"Endpoint","version":"x.y.z"}}
@@ -200,6 +229,17 @@ Content-Length: 0
 
 实现与 Agent 配对的测试接收端时，先区分管理和通信令牌。注册路由以 201 触发本地保存，通信认证必须返回有可解析 `exp` 的占位 JWT，事件路由返回 2xx 才会触发队列出队。用 401/403 和 5xx 可验证保留队列及重新发送的状态转换。生产端对令牌签发、字段校验和持久化的实现仍缺少对应源码依据。 [认证及事件测试替身](https://github.com/wazuh/wazuh-agent/tree/ca211324af5c88caf77fcd57cab0e98475f8e4ce/src/tests/mock-server/config)
 
-测试替身使用以下额外字段。命令样本中的 `target.type` 为 `agent`，`target.id` 为 string，`status` 为 `sent`，`action.version` 样本值为 `v6.0.0`，Agent 的队列转换器不读取这些值。替身无命令时返回 408，有命令返回 200，注册固定返回 201，事件上传固定返回 200。这些状态只证明客户端的测试交互。 [命令替身](https://github.com/wazuh/wazuh-agent/blob/ca211324af5c88caf77fcd57cab0e98475f8e4ce/src/tests/mock-server/config/commands.groovy) · [注册替身](https://github.com/wazuh/wazuh-agent/blob/ca211324af5c88caf77fcd57cab0e98475f8e4ce/src/tests/mock-server/config/enrollment.groovy) · [事件替身](https://github.com/wazuh/wazuh-agent/blob/ca211324af5c88caf77fcd57cab0e98475f8e4ce/src/tests/mock-server/config/stateless.groovy)
+- **字段**：测试替身使用以下额外字段。
+- **命令样本**：命令样本中的 `target.type` 为 `agent`，`target.id` 为 string，`status` 为 `sent`，`action.version` 样本值为 `v6.0.0`，Agent 的队列转换器不读取这些值。
+- **状态**：替身无命令时返回 408，有命令返回 200，注册固定返回 201，事件上传固定返回 200。
+- **边界**：这些状态只证明客户端的测试交互。
+- **证据**：[命令替身](https://github.com/wazuh/wazuh-agent/blob/ca211324af5c88caf77fcd57cab0e98475f8e4ce/src/tests/mock-server/config/commands.groovy)
+- **证据**：[注册替身](https://github.com/wazuh/wazuh-agent/blob/ca211324af5c88caf77fcd57cab0e98475f8e4ce/src/tests/mock-server/config/enrollment.groovy)
+- **证据**：[事件替身](https://github.com/wazuh/wazuh-agent/blob/ca211324af5c88caf77fcd57cab0e98475f8e4ce/src/tests/mock-server/config/stateless.groovy)
 
-Agent 的命令分派表接受 `set-group`、`fetch-config`、`restart`。三者由处理器同步执行。`set-group` 要求 `action.args.groups` 为数组，其余两个不要求参数。处理器拒绝未知命令并忽略额外参数。结果进入 STATEFUL 队列，元数据字段为 `module="command"`、`id`（命令 ID）、`operation="update"`。结果正文为单元素数组，其中 `[0].command.result.message` 为 string，`[0].command.result.code` 为整数枚举 `0 SUCCESS`、`1 FAILURE`、`2 IN_PROGRESS`、`3 TIMEOUT`、`4 UNKNOWN`。 [分派表](https://github.com/wazuh/wazuh-agent/blob/ca211324af5c88caf77fcd57cab0e98475f8e4ce/src/agent/command_handler/src/command_handler.cpp) · [结果入队](https://github.com/wazuh/wazuh-agent/blob/ca211324af5c88caf77fcd57cab0e98475f8e4ce/src/agent/src/command_handler_utils.cpp)
+- **分派**：Agent 的命令分派表接受 `set-group`、`fetch-config`、`restart`。三者由处理器同步执行。
+- **参数**：`set-group` 要求 `action.args.groups` 为数组，其余两个不要求参数。
+- **边界**：处理器拒绝未知命令并忽略额外参数。
+- **队列元数据**：结果进入 STATEFUL 队列，元数据字段为 `module="command"`、`id`（命令 ID）、`operation="update"`。
+- **结果正文**：结果正文为单元素数组，其中 `[0].command.result.message` 为 string，`[0].command.result.code` 为整数枚举 `0 SUCCESS`、`1 FAILURE`、`2 IN_PROGRESS`、`3 TIMEOUT`、`4 UNKNOWN`。
+- **证据**：[分派表](https://github.com/wazuh/wazuh-agent/blob/ca211324af5c88caf77fcd57cab0e98475f8e4ce/src/agent/command_handler/src/command_handler.cpp) · [结果入队](https://github.com/wazuh/wazuh-agent/blob/ca211324af5c88caf77fcd57cab0e98475f8e4ce/src/agent/src/command_handler_utils.cpp)

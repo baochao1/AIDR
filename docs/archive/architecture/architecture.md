@@ -41,14 +41,14 @@ flowchart LR
 
 | Demo 模块 | 主要职责 | 当前实现 |
 |---|---|---|
-| 入口与身份引导 | 启动管理端或 Agent，签名、发布、下发策略及查询状态，生成角色隔离的测试凭据 | [main.go](../../cmd/supervisor-demo/main.go)、[bootstrap.go](../../cmd/supervisor-demo/bootstrap.go) |
-| 管理端与制品仓库 | 接收注册、保存期望策略、提供签名包、记录实际状态与接收事件 | [http.go](../../internal/demo/http.go)、[events.go](../../internal/demo/events.go) |
-| Agent 管理客户端 | 独立执行 check-in 和异步下载，处理收到的策略 revision | [agent_control.go](../../internal/demo/agent_control.go) |
-| 制品校验和版本存储 | 校验 Ed25519 签名、摘要和平台，检查 ZIP 路径，按版本内容隔离安装。启动、复用和回滚前复检文件摘要 | [artifact.go](../../internal/demo/artifact.go) |
-| Agent 协调器和进程运行时 | 计算期望与实际状态差异，执行安装、启停、升级、回滚和卸载。每进程独立探活，故障预算限流 | [agent.go](../../internal/demo/agent.go)、[Windows Job Object](../../internal/demo/process_windows.go)、[Unix 进程组](../../internal/demo/process_unix.go) |
-| 组件协议与本机传输 | TLS 实例证书与 token、Health、双向 EventStream。Windows 命名管道，Linux/macOS Unix socket，TLS 回环 TCP 作兼容选项 | [component.go](../../internal/component/component.go)、[Events Proto](../../api/proto/component/v1/events.proto)、[原生 IPC 说明](native-ipc.md) |
-| 事件接入与投递 | 终端落盘后回复事件 ID，流断开后同实例重连，队列批量上传，管理端持久去重 | [events.go](../../internal/demo/events.go)、[state.go](../../internal/demo/state.go) |
-| 演示与验证 | 图形化展示能力、进程和采集状态，实测两种语言的组件与端到端生命周期 | [Windows Agent Console](../../scripts/aidr-agent-console.py)、[端到端脚本](../../scripts/e2e.py) |
+| 入口与身份引导 | 启动管理端或 Agent，签名、发布、下发策略及查询状态，生成角色隔离的测试凭据 | [main.go](../../../cmd/supervisor-demo/main.go)、[bootstrap.go](../../../cmd/supervisor-demo/bootstrap.go) |
+| 管理端与制品仓库 | 接收注册、保存期望策略、提供签名包、记录实际状态与接收事件 | [http.go](../../../internal/demo/http.go)、[events.go](../../../internal/demo/events.go) |
+| Agent 管理客户端 | 独立执行 check-in 和异步下载，处理收到的策略 revision | [agent_control.go](../../../internal/demo/agent_control.go) |
+| 制品校验和版本存储 | 校验 Ed25519 签名、摘要和平台，检查 ZIP 路径，按版本内容隔离安装。启动、复用和回滚前复检文件摘要 | [artifact.go](../../../internal/demo/artifact.go) |
+| Agent 协调器和进程运行时 | 计算期望与实际状态差异，执行安装、启停、升级、回滚和卸载。每进程独立探活，故障预算限流 | [agent.go](../../../internal/demo/agent.go)、[Windows Job Object](../../../internal/demo/process_windows.go)、[Unix 进程组](../../../internal/demo/process_unix.go) |
+| 组件协议与本机传输 | TLS 实例证书与 token、Health、双向 EventStream。Windows 命名管道，Linux/macOS Unix socket，TLS 回环 TCP 作兼容选项 | [component.go](../../../internal/component/component.go)、[Events Proto](../../../api/proto/component/v1/events.proto)、[原生 IPC 说明](native-ipc.md) |
+| 事件接入与投递 | 终端落盘后回复事件 ID，流断开后同实例重连，队列批量上传，管理端持久去重 | [events.go](../../../internal/demo/events.go)、[state.go](../../../internal/demo/state.go) |
+| 演示与验证 | 图形化展示能力、进程和采集状态，实测两种语言的组件与端到端生命周期 | [Windows Agent Console](../../../scripts/aidr-agent-console.py)、[端到端脚本](../../../scripts/e2e.py) |
 
 ## 3. 关键链路
 
@@ -110,7 +110,7 @@ sequenceDiagram
 | grpcio、PyInstaller | Python Mock 和独立打包样例 |
 | hashicorp/go-plugin | 独立 IPC PoC |
 
-版本和许可证见 [依赖清单](dependencies.md) 与 [go.mod](../../go.mod)。
+版本和许可证见 [依赖清单](dependencies.md) 与 [go.mod](../../../go.mod)。
 
 ## 5. 当前验收和下一阶段边界
 

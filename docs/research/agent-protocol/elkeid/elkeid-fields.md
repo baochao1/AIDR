@@ -1,6 +1,12 @@
 # Elkeid 官方采集字段附录
 
-本表将提交 `c906c512d20c0d56f2b779b8558ed69abae718c8` 第一张采集矩阵转为每个记录类型一行。原表有 927 个非空字段单元格。类型 611 的 `pid_tree` 重复出现，本表合并为一项，共 926 个不同的类型与字段配对。统计沿用上游矩阵的展示单元格，其中 37 行含 `data_type`（类型值本身）、16 行不含，按矩阵原样保留。字段集合沿用上游的展示命名，可能包含外层元数据和业务处理生成字段。实际 Agent→AgentCenter Protobuf 包含 `data_type` 与 `timestamp`、外层批次元数据，以及 `Payload.fields` 开放字符串映射。发布矩阵未声明 map 键的必填性、默认值或逐字段线上约束。Agent 心跳经源码核实的字段见主报告。 [固定提交原始数据矩阵](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/docs/ElkeidData/raw_data_desc.md)
+- **整理方式**：将提交 `c906c512d20c0d56f2b779b8558ed69abae718c8` 第一张采集矩阵转为每个记录类型一行
+- **统计口径**：原表 927 个非空字段单元格；类型 611 的 `pid_tree` 重复出现，合并为一项后共 926 个不同的类型与字段配对
+- **`data_type`**：统计沿用上游展示单元格，其中 37 行含 `data_type`（类型值本身）、16 行不含，按矩阵原样保留
+- **字段来源**：沿用上游展示命名，可能包含外层元数据和业务处理生成字段
+- **实际载荷**：Agent→AgentCenter Protobuf 包含 `data_type` 与 `timestamp`、外层批次元数据，以及 `Payload.fields` 开放字符串映射
+- **边界**：发布矩阵未声明 map 键的必填性、默认值或逐字段线上约束；Agent 心跳经源码核实的字段见主报告
+- **证据**：[固定提交原始数据矩阵](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/docs/ElkeidData/raw_data_desc.md)
 
 | 类型值 | 来源模块 | 事件 | 公开字段 |
 |---|---|---|---|
@@ -73,7 +79,17 @@
 | 8010 | Baseline 任务状态 | `status` 为 `succeed` 或 `failed`，`msg` 为说明，`token` 仅在非空时写入。 |
 | 2001、2003、5101 | AgentCenter 任务对账分支 | 固定接收代码可确认解析为开放字符串 map，并额外写入十进制字符串 `data_type`，未定位到固定版本中的对应生产者。 |
 
-[Journal Watcher 生产者](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/plugins/journal_watcher/src/main.rs#L150) · [SSH 语法](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/plugins/journal_watcher/src/sshd.pest) · [Agent 日志](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/agent/log/writer.go) · [Go 插件日志](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/plugins/lib/go/log/writer.go) · [Collector 任务结果](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/plugins/collector/engine/engine.go#L144) · [Agent 任务日志](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/agent/log/custom.go) · [Scanner](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/plugins/scanner/src/data_type.rs#L18) · [全盘状态映射](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/plugins/scanner/src/model/functional/fulldiskscan.rs#L44) · [Baseline 生产者](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/plugins/baseline/main.go)
+源码依据：
+
+- [Journal Watcher 生产者](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/plugins/journal_watcher/src/main.rs#L150)
+- [SSH 语法](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/plugins/journal_watcher/src/sshd.pest)
+- [Agent 日志](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/agent/log/writer.go)
+- [Go 插件日志](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/plugins/lib/go/log/writer.go)
+- [Collector 任务结果](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/plugins/collector/engine/engine.go#L144)
+- [Agent 任务日志](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/agent/log/custom.go)
+- [Scanner](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/plugins/scanner/src/data_type.rs#L18)
+- [全盘状态映射](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/plugins/scanner/src/model/functional/fulldiskscan.rs#L44)
+- [Baseline 生产者](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/plugins/baseline/main.go)
 
 ### Baseline 8000 的嵌套 JSON
 
@@ -106,8 +122,18 @@ Collector 公布的 8 个资产采集编号与固定源码中的生产者对应�
 | 5057 | [integrity.go](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/plugins/collector/integrity.go) |
 | 5058 | [volume.go](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/plugins/collector/volume.go)，公开矩阵的展示标签为 Sudoers，固定生产者请以源码为准。 |
 
-固定导出中 `5058` 的实际字段为 `name`（设备）、`fstype`（文件系统类型）、`mount_point`（挂载点）、`total`、`used`、`free`（十进制字节数）、`usage`（0–1 的使用比例文本）、`package_seq`（采集批次序号文本）。仅在获取分区用量成功后产生记录。Sudoers 的展示字段保留在官方矩阵行，作为版本差异。 [固定 Volume 生产者](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/plugins/collector/volume.go)
+- **`5058` 实际字段**：`name`（设备）、`fstype`（文件系统类型）、`mount_point`（挂载点）、`total`、`used`、`free`（十进制字节数）、`usage`（0–1 的使用比例文本）、`package_seq`（采集批次序号文本）
+- **产生条件**：仅在获取分区用量成功后产生记录
+- **版本差异**：Sudoers 的展示字段保留在官方矩阵行
+- **证据**：[固定 Volume 生产者](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/plugins/collector/volume.go)
 
-Scanner 的 `6001`、`6002` 和 `6003` 同时发送 `types`、`class`、`name`、`exe`、`static_file`、`exe_size`、`exe_hash`、`md5_hash`、`create_at`、`modify_at`。有匹配明细时加入 `hit_data`。 `6001` 和 `6002` 的任务关联分支加 `token`。 `6002` 另带 `pid`、`ppid`、`pgid`、`tgid`、`argv`、`comm`、`sessionid`、`uid`、`pns`，任务关联分支还写 `file_path`、`file_hash`。 `6003` 另带 `error` 和 `token`，一个分支追加自定义键。字段在 Payload 中均为字符串。 [Scanner 记录序列化](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/plugins/scanner/src/data_type.rs)
+- **公共字段**：`6001`、`6002`、`6003` 同时发送 `types`、`class`、`name`、`exe`、`static_file`、`exe_size`、`exe_hash`、`md5_hash`、`create_at`、`modify_at`
+- **匹配明细**：有匹配明细时加入 `hit_data`
+- **`6001` / `6002` 任务关联**：附加 `token`
+- **`6002` 专有**：`pid`、`ppid`、`pgid`、`tgid`、`argv`、`comm`、`sessionid`、`uid`、`pns`；任务关联分支还写 `file_path`、`file_hash`
+- **`6003` 专有**：`error`、`token`，一个分支追加自定义键
+- **边界**：字段在 Payload 中均为字符串
+- **证据**：[Scanner 记录序列化](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/plugins/scanner/src/data_type.rs)
 
-展示字段的中文义项、逻辑类型及事件分类见同一固定版本的[字段名称与类型](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/docs/ElkeidData/raw_data_desc.md#字段对应中文描述)和[数据类型分类](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/docs/ElkeidData/raw_data_desc.md#数据类型分类)。逻辑类型可能来自数据处理后的视图，上报的插件通用映射仍以 Protobuf 的 string 值为准。
+- **中文义项、逻辑类型、事件分类**：见同一固定版本的[字段名称与类型](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/docs/ElkeidData/raw_data_desc.md#字段对应中文描述)和[数据类型分类](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/docs/ElkeidData/raw_data_desc.md#数据类型分类)
+- **边界**：逻辑类型可能来自数据处理后的视图，上报的插件通用映射仍以 Protobuf 的 string 值为准

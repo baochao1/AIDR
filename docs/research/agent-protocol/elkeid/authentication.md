@@ -32,11 +32,36 @@ sequenceDiagram
 
 ## 逐步过程
 
-1. **准备材料**：Agent 在构建时嵌入 CA、客户端证书与私钥；AgentCenter 在启动时从磁盘读取服务端证书、私钥及客户端信任 CA。任一加载失败即退出。
-2. **服务端校验**：Agent 的 `setDialOptions` 解析 PEM，自定义校验对端证书链到指定 CA，并验证预期 DNS 名 `elkeid.com`。TLS 失败发生在任何 RPC 消息交换之前。
-3. **客户端校验**：AgentCenter 要求并验证客户端证书。未通过握手时连接直接失败，不会进入 `Transfer` 流。
-4. **业务身份登记**：TLS 建立后 Agent 打开 `/grpc.Transfer/Transfer` 双向流，首个 `PackagedData` 携带 `agent_id`。AgentCenter 读取首包 ID 登记连接池；冲突时返回 `agentID conflict`，已有连接继续存在。首条心跳初始化在线详情并触发配置下发。
-5. **应用层**：所有键位于 `Payload.fields`，值均为字符串。握手认证没有独立应用字段，应用代码不附加 bearer token 或 API key。
+### 1. 双方准备证书材料
+
+- **Agent**：构建时嵌入 CA、客户端证书和客户端私钥
+- **AgentCenter**：启动时从磁盘读取服务端证书、私钥和客户端信任 CA
+- **失败行为**：任一方加载失败都会退出
+
+### 2. Agent 校验服务端证书
+
+- **发起方**：Agent → AgentCenter（TLS 连接）
+- **动作**：通过 `setDialOptions` 解析 PEM；收到服务端证书链后校验到指定 CA，并核对 DNS 名 `elkeid.com`
+- **失败行为**：TLS 握手中止，双方不交换任何 RPC 消息
+
+### 3. AgentCenter 校验客户端证书
+
+- **发起方**：Agent 在握手中出示客户端证书
+- **执行方**：AgentCenter 要求该证书，并按客户端信任 CA 验证
+- **失败行为**：连接直接失败，不会进入 `/grpc.Transfer/Transfer` 流
+
+### 4. Agent 登记业务身份
+
+- **发起方**：Agent → AgentCenter
+- **请求**：TLS 建立后打开 `/grpc.Transfer/Transfer` 双向流，首个 `PackagedData` 携带 `agent_id`
+- **处理**：AgentCenter 读取首包 ID 登记连接池；ID 冲突时返回 `agentID conflict`，已有连接保留
+- **后续**：AgentCenter 用首条心跳初始化在线详情并触发配置下发
+
+### 5. 应用层不附加认证字段
+
+- **协议层**：认证由 TLS 握手承担，应用层没有独立认证字段
+- **载荷**：所有键位于 `Payload.fields`，值均为字符串
+- **边界**：应用代码不附加 bearer token 或 API key
 
 ## 失败与重试
 

@@ -1,6 +1,15 @@
 # Agent 协议调研候选清单
 
-候选来自 AIDR 的 [固定源码调研](../research.md)、[Supervisor 实施资料](../../../origin/supervisor-demo-implementation.md)、[开源 EDR 选型报告](../../../origin/开源EDR框架选型评估报告-终版.html)与[插件 SDK 集成设计](../../../origin/统一客户端第三方插件SDK集成设计方案.html)。深挖引用已通过 GitHub 官方仓库的 Git 提交接口核实。Elastic 的两个提交也与各仓库的 `v8.17.0` tag 核对一致。其余候选沿用 AIDR 已记录的固定引用，早期选型材料中的未锁定项目标为待定。
+候选来源：
+
+- [固定源码调研](../../archive/research/research.md)
+- [Supervisor 实施资料](../../../origin/supervisor-demo-implementation.md)
+- [开源 EDR 选型报告](../../../origin/开源EDR框架选型评估报告-终版.html)
+- [插件 SDK 集成设计](../../../origin/统一客户端第三方插件SDK集成设计方案.html)
+
+- **核实**：深挖引用已通过 GitHub 官方仓库的 Git 提交接口核实
+- **Elastic**：两个提交与各仓库的 `v8.17.0` tag 核对一致
+- **其余候选**：沿用 AIDR 已记录的固定引用，早期选型材料中的未锁定项目标为待定
 
 ## 首批字段级调研
 

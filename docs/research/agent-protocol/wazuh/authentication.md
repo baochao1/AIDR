@@ -29,11 +29,36 @@ sequenceDiagram
 
 ## 逐步过程
 
-1. **建立注册连接**：Agent 通过 TCP 1515 的 TLS 连接 `wazuh-authd`。可配置验证 Manager CA 与身份、提供客户端证书与私钥、使用注册密码。证书验证和共享密码开关由部署配置决定；固定 authd 配置默认启用远程注册，`use_password`、`use_source_ip`、`verify_host` 默认关闭。
-2. **发送注册文本**：TLS 内为顺序文本，按 `OSSEC PASS:`（可选）、`OSSEC A:'<name>'`、`V:'<version>'`、`G:'<groups>'`、`IP:'<address>'`、`K:'<digest>'` 的顺序构造，以 LF 结束。
-3. **读取响应**：成功文本 `OSSEC K:'ID Name Address Key'`，以闭合单引号结束，服务端不追加 LF；失败为 `ERROR: ` 加诊断文本，以连接结束收尾。Agent 保留 ID 前导零、四字段顺序和引号，写入 `client.keys` 时只取引号内四项。
-4. **启动同步**：Agent 在 1514 发送启动控制消息 `#!-agent startup <json>`。安全消息外层为 TCP 4 字节小端 `payload_size`，负载前缀为可选 `!<agent_id>!` 与 `#AES:`（或 Blowfish 分支），解密后校验 32 字节 MD5 与计数器，正文为事件或 `#!-` 控制载荷。启动成功收到 `#!-agent ack `。
-5. **运行期**：心跳默认 20 秒，普通事件进入 Manager 分析队列。密钥或计数校验失败返回内部结果 `KS_ENCKEY`、`KS_RIDS` 等，不发送逐事件回执。
+### 1. Agent 建立注册连接
+
+- **发起方**：Agent → `wazuh-authd`，TCP 1515 TLS
+- **可选配置**：验证 Manager CA 与身份、提供客户端证书和私钥、使用注册密码
+- **默认值**：固定 authd 配置默认启用远程注册；`use_password`、`use_source_ip`、`verify_host` 默认关闭
+
+### 2. Agent 发送注册文本
+
+- **发起方**：Agent → `wazuh-authd`，在 TLS 连接内发送
+- **顺序**：`OSSEC PASS:`（可选）、`OSSEC A:'<name>'`、`V:'<version>'`、`G:'<groups>'`、`IP:'<address>'`、`K:'<digest>'`
+- **结束**：以 LF 结束
+
+### 3. Agent 读取并保存注册响应
+
+- **成功响应**：`wazuh-authd` 返回 `OSSEC K:'ID Name Address Key'`，以闭合单引号结束且不追加 LF
+- **失败响应**：`ERROR: ` 加诊断文本，随后结束连接
+- **落盘**：Agent 保留 ID 前导零、四字段顺序和引号；写入 `client.keys` 时只取引号内四项
+
+### 4. Agent 启动同步
+
+- **发起方**：Agent → Manager，TCP 1514
+- **请求**：启动控制消息 `#!-agent startup <json>`，封装为安全消息
+- **封装**：外层 TCP 4 字节小端 `payload_size`；负载前缀可选 `!<agent_id>!` 与 `#AES:`（或 Blowfish 分支）；解密后校验 32 字节 MD5 与计数器；正文为事件或 `#!-` 控制载荷
+- **响应**：Manager 启动成功时返回 `#!-agent ack `
+
+### 5. Agent 运行期上报
+
+- **心跳**：Agent 默认每 20 秒向 Manager 发送
+- **事件**：普通事件进入 Manager 分析队列
+- **回执**：心跳与事件上报没有逐事件回执；密钥或计数校验失败时产生 `KS_ENCKEY`、`KS_RIDS` 等内部结果
 
 ## 失败与重试
 

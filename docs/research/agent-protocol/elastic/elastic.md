@@ -1,6 +1,9 @@
 # Elastic Agent 8.17.0 认证与数据面接口规格
 
-范围为受 Fleet 管理的 Agent 和直连 Elasticsearch 的事件输出。Fleet Server 固定到 `d05ee7b30ed62dba0cad7b31ff2ea003897cde82`，Agent 固定到 `96f2b9fc0dbddfcaac1c55e0e0bc9aed3bf6badb`。协议结论来自静态源码与 Elasticsearch 8.17 文档。 [Fleet Server](https://github.com/elastic/fleet-server/tree/d05ee7b30ed62dba0cad7b31ff2ea003897cde82) · [Agent](https://github.com/elastic/elastic-agent/tree/96f2b9fc0dbddfcaac1c55e0e0bc9aed3bf6badb)
+- **范围**：范围为受 Fleet 管理的 Agent 和直连 Elasticsearch 的事件输出。
+- **版本**：Fleet Server 固定到 `d05ee7b30ed62dba0cad7b31ff2ea003897cde82`，Agent 固定到 `96f2b9fc0dbddfcaac1c55e0e0bc9aed3bf6badb`。
+- **依据**：协议结论来自静态源码与 Elasticsearch 8.17 文档。
+- **证据**：[Fleet Server](https://github.com/elastic/fleet-server/tree/d05ee7b30ed62dba0cad7b31ff2ea003897cde82) · [Agent](https://github.com/elastic/elastic-agent/tree/96f2b9fc0dbddfcaac1c55e0e0bc9aed3bf6badb)
 
 ## 接口清单与共用约定
 
@@ -14,7 +17,20 @@
 | Agent → Fleet Server | POST `/api/fleet/agents/{id}/audit/unenroll` | Agent 认证 | 审计接口，见下文 |
 | 采集组件 → Elasticsearch | POST `/_bulk` | 对目标数据流有写权限的 output API key | 200，仍须检查逐项结果 |
 
-Fleet 使用 HTTPS 部署。正文为 UTF-8 JSON，示例请求以 `Content-Type: application/json` 发送。Fleet Server 响应使用 `Content-Type: application/json`。`Authorization` 为单值 `ApiKey <凭据>`。注册与通信凭据以 Base64 文本交付；策略下发的 output API key 是 `<id>:<secret>` 原始串，出站时需编码后再放入请求头（见“Elasticsearch 数据面”）。注册及 check-in 发送 `User-Agent: Elastic Agent v8.17.0`，服务端检查产品名和版本范围。`Elastic-Api-Version: 2023-06-01` 可显式选版本；省略走服务器默认版本。可带 `X-Request-Id` 跟踪。check-in 可通过 `Accept-Encoding` 声明支持 Gzip。Kibana 写操作带 `kbn-xsrf`。Bulk 有独立的 NDJSON 约定。 [Fleet OpenAPI](https://github.com/elastic/fleet-server/blob/d05ee7b30ed62dba0cad7b31ff2ea003897cde82/pkg/api/versions/2023_06_01/api/openapi.yml) · [Agent HTTP 包装](https://github.com/elastic/elastic-agent/blob/96f2b9fc0dbddfcaac1c55e0e0bc9aed3bf6badb/internal/pkg/fleetapi/client/round_trippers.go)
+- **传输**：Fleet 使用 HTTPS 部署。
+- **请求正文**：正文为 UTF-8 JSON，示例请求以 `Content-Type: application/json` 发送。
+- **响应正文**：Fleet Server 响应使用 `Content-Type: application/json`。
+- **认证头**：`Authorization` 为单值 `ApiKey <凭据>`。
+- **凭据格式**：注册与通信凭据以 Base64 文本交付。
+- **输出凭据**：策略下发的 output API key 是 `<id>:<secret>` 原始串，出站时需编码后再放入请求头（见“Elasticsearch 数据面”）。
+- **User-Agent**：注册及 check-in 发送 `User-Agent: Elastic Agent v8.17.0`，服务端检查产品名和版本范围。
+- **版本选择**：`Elastic-Api-Version: 2023-06-01` 可显式选版本；省略走服务器默认版本。
+- **跟踪**：可带 `X-Request-Id` 跟踪。
+- **压缩**：check-in 可通过 `Accept-Encoding` 声明支持 Gzip。
+- **Kibana**：Kibana 写操作带 `kbn-xsrf`。
+- **Bulk**：Bulk 有独立的 NDJSON 约定。
+- **证据**：[Fleet OpenAPI](https://github.com/elastic/fleet-server/blob/d05ee7b30ed62dba0cad7b31ff2ea003897cde82/pkg/api/versions/2023_06_01/api/openapi.yml)
+- **证据**：[Agent HTTP 包装](https://github.com/elastic/elastic-agent/blob/96f2b9fc0dbddfcaac1c55e0e0bc9aed3bf6badb/internal/pkg/fleetapi/client/round_trippers.go)
 
 ```mermaid
 sequenceDiagram
@@ -35,7 +51,11 @@ sequenceDiagram
 
 ## 管理端注册令牌接口
 
-管理端为 Kibana 8.17.0，固定提交 `86cbc85e621f4f3f701ed230f4e859ac5a80145b`。下列接口位于 Kibana，Agent 继续调用 Fleet Server 的 enroll 接口。写入和删除路由声明 `kbn-xsrf` 请求头。 [路由](https://github.com/elastic/kibana/blob/86cbc85e621f4f3f701ed230f4e859ac5a80145b/x-pack/plugins/fleet/server/routes/enrollment_api_key/index.ts) · [OpenAPI 清单和签发](https://github.com/elastic/kibana/blob/86cbc85e621f4f3f701ed230f4e859ac5a80145b/x-pack/plugins/fleet/common/openapi/paths/enrollment_api_keys.yaml)
+- **版本**：管理端为 Kibana 8.17.0，固定提交 `86cbc85e621f4f3f701ed230f4e859ac5a80145b`。
+- **边界**：下列接口位于 Kibana，Agent 继续调用 Fleet Server 的 enroll 接口。
+- **请求头**：写入和删除路由声明 `kbn-xsrf` 请求头。
+- **证据**：[路由](https://github.com/elastic/kibana/blob/86cbc85e621f4f3f701ed230f4e859ac5a80145b/x-pack/plugins/fleet/server/routes/enrollment_api_key/index.ts)
+- **证据**：[OpenAPI 清单和签发](https://github.com/elastic/kibana/blob/86cbc85e621f4f3f701ed230f4e859ac5a80145b/x-pack/plugins/fleet/common/openapi/paths/enrollment_api_keys.yaml)
 
 | 接口 | 请求 | 成功响应 |
 |---|---|---|
@@ -44,20 +64,72 @@ sequenceDiagram
 | GET `/api/fleet/enrollment_api_keys/{keyId}` | `keyId` 必填 string，注册令牌记录 ID | 200，`item` object |
 | DELETE `/api/fleet/enrollment_api_keys/{keyId}` | `keyId` 必填 string，无 JSON body | 200，`action` 单值 `deleted` |
 
-`item` 与 `items[]` 字段为 `id`（记录 UUID）、`api_key_id`（Elasticsearch Key ID）、`api_key`（Base64 编码的 ID、冒号与 secret）、`created_at`（ISO 8601 时间）必填 string，`active` 必填 bool，`name`、`policy_id` 为 schema 可省略 string。服务实现另将策略的 `space_ids` 写为 `namespaces`，该字段未列入公开对象 schema。400 错误结构声明 `statusCode` number、`error` string、`message` string。读取和撤销不存在的记录时 handler 显式返回 404 和 `message`。服务先向 Elasticsearch Security 签发 Key，再写入令牌记录。DELETE 先使底层 Key 失效，再把记录设为 inactive。公开 OpenAPI 省略 `expiration`，运行时 route 接受且 handler 传参，但固定提交的 `generateEnrollmentAPIKey` 未把它传给 Security，因此不能按该入参推导过期时间。 [对象 schema](https://github.com/elastic/kibana/blob/86cbc85e621f4f3f701ed230f4e859ac5a80145b/x-pack/plugins/fleet/common/openapi/components/schemas/enrollment_api_key.yaml) · [运行时校验](https://github.com/elastic/kibana/blob/86cbc85e621f4f3f701ed230f4e859ac5a80145b/x-pack/plugins/fleet/server/types/rest_spec/enrollment_api_key.ts) · [服务实现](https://github.com/elastic/kibana/blob/86cbc85e621f4f3f701ed230f4e859ac5a80145b/x-pack/plugins/fleet/server/services/api_keys/enrollment_api_key.ts) · [Handler](https://github.com/elastic/kibana/blob/86cbc85e621f4f3f701ed230f4e859ac5a80145b/x-pack/plugins/fleet/server/routes/enrollment_api_key/handler.ts)
+- **必填 string**：`item` 与 `items[]` 字段为 `id`（记录 UUID）、`api_key_id`（Elasticsearch Key ID）、`api_key`（Base64 编码的 ID、冒号与 secret）、`created_at`（ISO 8601 时间）必填 string。
+- **其他字段**：`active` 必填 bool，`name`、`policy_id` 为 schema 可省略 string。
+- **边界**：服务实现另将策略的 `space_ids` 写为 `namespaces`，该字段未列入公开对象 schema。
+- **错误**：400 错误结构声明 `statusCode` number、`error` string、`message` string。
+- **错误**：读取和撤销不存在的记录时 handler 显式返回 404 和 `message`。
+- **处理**：服务先向 Elasticsearch Security 签发 Key，再写入令牌记录。
+- **处理**：DELETE 先使底层 Key 失效，再把记录设为 inactive。
+- **结论**：公开 OpenAPI 省略 `expiration`，运行时 route 接受且 handler 传参，但固定提交的 `generateEnrollmentAPIKey` 未把它传给 Security，因此不能按该入参推导过期时间。
+- **证据**：[对象 schema](https://github.com/elastic/kibana/blob/86cbc85e621f4f3f701ed230f4e859ac5a80145b/x-pack/plugins/fleet/common/openapi/components/schemas/enrollment_api_key.yaml)
+- **证据**：[运行时校验](https://github.com/elastic/kibana/blob/86cbc85e621f4f3f701ed230f4e859ac5a80145b/x-pack/plugins/fleet/server/types/rest_spec/enrollment_api_key.ts)
+- **证据**：[服务实现](https://github.com/elastic/kibana/blob/86cbc85e621f4f3f701ed230f4e859ac5a80145b/x-pack/plugins/fleet/server/services/api_keys/enrollment_api_key.ts)
+- **证据**：[Handler](https://github.com/elastic/kibana/blob/86cbc85e621f4f3f701ed230f4e859ac5a80145b/x-pack/plugins/fleet/server/routes/enrollment_api_key/handler.ts)
 
 ## 认证与身份生命周期
 
-1. 管理员为策略签发 enrollment token。Agent 通过 HTTPS 发起 `POST /api/fleet/agents/enroll`，以 `Authorization: ApiKey <enrollment-token>` 认证，并发送 Agent 版本所在的 `User-Agent`。Fleet Server 先验证 Key 和 Agent 版本，再按 Key ID 找注册记录，确定策略与命名空间。认证缓存未命中时委托 Elasticsearch 认证。 [注册处理](https://github.com/elastic/fleet-server/blob/d05ee7b30ed62dba0cad7b31ff2ea003897cde82/internal/pkg/api/handleEnroll.go#L79) · [认证逻辑](https://github.com/elastic/fleet-server/blob/d05ee7b30ed62dba0cad7b31ff2ea003897cde82/internal/pkg/api/auth.go#L32)
-2. Fleet Server 生成 Agent UUID 和新的 access API key。服务端的 Agent 记录保存 Key ID、策略、入网时间和元数据。成功响应将 Key 给 Agent，后续 check-in 和 ACK 用该 Key。失败回滚可删除新 Agent 记录并使新 Key 失效。同一 `enrollment_id` 可关联到未成功 check-in 的旧记录，旧 Key 失效后删除其记录再创建。 [签发、持久化及回滚](https://github.com/elastic/fleet-server/blob/d05ee7b30ed62dba0cad7b31ff2ea003897cde82/internal/pkg/api/handleEnroll.go#L189)
-3. Agent 通过 `POST /api/fleet/agents/{id}/checkin` 长轮询领取策略和动作，通过 `POST /api/fleet/agents/{id}/acks` 回报执行结果。路径的 `id` 与认证结果中的 Key ID 必须匹配 Agent 记录。check-in 可以刷新组件/本机元数据。旧 `ack_token` 用于恢复动作序号，动作送达和动作执行回执是两个不同状态。 [身份绑定](https://github.com/elastic/fleet-server/blob/d05ee7b30ed62dba0cad7b31ff2ea003897cde82/internal/pkg/api/auth.go#L90) · [Check-in](https://github.com/elastic/fleet-server/blob/d05ee7b30ed62dba0cad7b31ff2ea003897cde82/internal/pkg/api/handleCheckin.go#L121) · [ACK](https://github.com/elastic/fleet-server/blob/d05ee7b30ed62dba0cad7b31ff2ea003897cde82/internal/pkg/api/handleAck.go)
-4. Fleet Server 通过策略下发 Elasticsearch output API key，Agent 的输出组件用它写入目标 Elasticsearch。注册、控制和入库对应独立凭据。未启用的 Agent 进入失效处理，策略应用 ACK 也有旧输出 Key 退役处理。定期续期周期与无人工干预恢复未验证。 [凭据职责](https://www.elastic.co/guide/en/fleet/8.17/fleet-enrollment-tokens.html) · [非活动 Agent](https://github.com/elastic/fleet-server/blob/d05ee7b30ed62dba0cad7b31ff2ea003897cde82/internal/pkg/api/handleCheckin.go#L148) · [Key 更新与失效](https://github.com/elastic/fleet-server/blob/d05ee7b30ed62dba0cad7b31ff2ea003897cde82/internal/pkg/api/handleAck.go#L439)
+### 1. 注册请求与凭据验证
 
-Agent 端 `enrollCmd.enroll` 获取 ECS 元数据、清洗标签并发送 `PERMANENT` 请求。它将响应的 Key 写入 Fleet 配置，将响应 ID 写入 Agent 配置，通过 `safelyStoreAgentInfo` 保存 YAML，并清除本机动作和状态存储。注册配置使用加密磁盘存储和成功后替换包装。注册收到 HTTP 429、502、503、504 或连接被拒绝时，Agent 使用初始 1 秒、上限 10 秒的指数退避重试。当前固定版本的 Agent 请求结构没有 `enrollment_id`，该字段属于服务端所支持的接口范围。 [注册轮询及保存](https://github.com/elastic/elastic-agent/blob/96f2b9fc0dbddfcaac1c55e0e0bc9aed3bf6badb/internal/pkg/agent/cmd/enroll_cmd.go#L519) · [构造加密存储](https://github.com/elastic/elastic-agent/blob/96f2b9fc0dbddfcaac1c55e0e0bc9aed3bf6badb/internal/pkg/agent/cmd/enroll.go#L505) · [Agent 请求与状态分支](https://github.com/elastic/elastic-agent/blob/96f2b9fc0dbddfcaac1c55e0e0bc9aed3bf6badb/internal/pkg/fleetapi/enroll_cmd.go)
+- **前提**：管理员为策略签发 enrollment token。
+- **发起方**：Agent 通过 HTTPS 发起 `POST /api/fleet/agents/enroll`，以 `Authorization: ApiKey <enrollment-token>` 认证，并发送 Agent 版本所在的 `User-Agent`。
+- **处理**：Fleet Server 先验证 Key 和 Agent 版本，再按 Key ID 找注册记录，确定策略与命名空间。
+- **边界**：认证缓存未命中时委托 Elasticsearch 认证。
+- **证据**：[注册处理](https://github.com/elastic/fleet-server/blob/d05ee7b30ed62dba0cad7b31ff2ea003897cde82/internal/pkg/api/handleEnroll.go#L79) · [认证逻辑](https://github.com/elastic/fleet-server/blob/d05ee7b30ed62dba0cad7b31ff2ea003897cde82/internal/pkg/api/auth.go#L32)
+
+### 2. Agent 记录与凭据签发
+
+- **处理**：Fleet Server 生成 Agent UUID 和新的 access API key。
+- **配置**：服务端的 Agent 记录保存 Key ID、策略、入网时间和元数据。
+- **响应**：成功响应将 Key 给 Agent，后续 check-in 和 ACK 用该 Key。
+- **边界**：失败回滚可删除新 Agent 记录并使新 Key 失效。
+- **边界**：同一 `enrollment_id` 可关联到未成功 check-in 的旧记录，旧 Key 失效后删除其记录再创建。
+- **证据**：[签发、持久化及回滚](https://github.com/elastic/fleet-server/blob/d05ee7b30ed62dba0cad7b31ff2ea003897cde82/internal/pkg/api/handleEnroll.go#L189)
+
+### 3. 签入与动作确认
+
+- **请求**：Agent 通过 `POST /api/fleet/agents/{id}/checkin` 长轮询领取策略和动作，通过 `POST /api/fleet/agents/{id}/acks` 回报执行结果。check-in 可以刷新组件/本机元数据。
+- **边界**：路径的 `id` 与认证结果中的 Key ID 必须匹配 Agent 记录。
+- **边界**：旧 `ack_token` 用于恢复动作序号，动作送达和动作执行回执是两个不同状态。
+- **证据**：[身份绑定](https://github.com/elastic/fleet-server/blob/d05ee7b30ed62dba0cad7b31ff2ea003897cde82/internal/pkg/api/auth.go#L90)
+- **证据**：[Check-in](https://github.com/elastic/fleet-server/blob/d05ee7b30ed62dba0cad7b31ff2ea003897cde82/internal/pkg/api/handleCheckin.go#L121)
+- **证据**：[ACK](https://github.com/elastic/fleet-server/blob/d05ee7b30ed62dba0cad7b31ff2ea003897cde82/internal/pkg/api/handleAck.go)
+
+### 4. 输出凭据与失效处理
+
+- **处理**：Fleet Server 通过策略下发 Elasticsearch output API key，Agent 的输出组件用它写入目标 Elasticsearch。
+- **结论**：注册、控制和入库对应独立凭据。
+- **边界**：未启用的 Agent 进入失效处理，策略应用 ACK 也有旧输出 Key 退役处理。定期续期周期与无人工干预恢复未验证。
+- **证据**：[凭据职责](https://www.elastic.co/guide/en/fleet/8.17/fleet-enrollment-tokens.html)
+- **证据**：[非活动 Agent](https://github.com/elastic/fleet-server/blob/d05ee7b30ed62dba0cad7b31ff2ea003897cde82/internal/pkg/api/handleCheckin.go#L148)
+- **证据**：[Key 更新与失效](https://github.com/elastic/fleet-server/blob/d05ee7b30ed62dba0cad7b31ff2ea003897cde82/internal/pkg/api/handleAck.go#L439)
+
+- **处理**：Agent 端 `enrollCmd.enroll` 获取 ECS 元数据、清洗标签并发送 `PERMANENT` 请求。
+- **处理**：它将响应的 Key 写入 Fleet 配置，将响应 ID 写入 Agent 配置，通过 `safelyStoreAgentInfo` 保存 YAML，并清除本机动作和状态存储。
+- **配置**：注册配置使用加密磁盘存储和成功后替换包装。
+- **重试**：注册收到 HTTP 429、502、503、504 或连接被拒绝时，Agent 使用初始 1 秒、上限 10 秒的指数退避重试。
+- **边界**：当前固定版本的 Agent 请求结构没有 `enrollment_id`，该字段属于服务端所支持的接口范围。
+- **证据**：[注册轮询及保存](https://github.com/elastic/elastic-agent/blob/96f2b9fc0dbddfcaac1c55e0e0bc9aed3bf6badb/internal/pkg/agent/cmd/enroll_cmd.go#L519)
+- **证据**：[构造加密存储](https://github.com/elastic/elastic-agent/blob/96f2b9fc0dbddfcaac1c55e0e0bc9aed3bf6badb/internal/pkg/agent/cmd/enroll.go#L505)
+- **证据**：[Agent 请求与状态分支](https://github.com/elastic/elastic-agent/blob/96f2b9fc0dbddfcaac1c55e0e0bc9aed3bf6badb/internal/pkg/fleetapi/enroll_cmd.go)
 
 ### 注册字段字典
 
-以下 JSON 无数字字段编号。表中“固定输出”表示生成 Go 结构未使用 `omitempty`。入参的实际校验以 handler 为准。 [EnrollMetadata、EnrollRequest、EnrollResponseItem、Error](https://github.com/elastic/fleet-server/blob/d05ee7b30ed62dba0cad7b31ff2ea003897cde82/internal/pkg/api/openapi.gen.go#L374) · [validateRequest](https://github.com/elastic/fleet-server/blob/d05ee7b30ed62dba0cad7b31ff2ea003897cde82/internal/pkg/api/handleEnroll.go#L522)
+- **边界**：以下 JSON 无数字字段编号。
+- **约定**：表中“固定输出”表示生成 Go 结构未使用 `omitempty`。
+- **边界**：入参的实际校验以 handler 为准。
+- **证据**：[EnrollMetadata、EnrollRequest、EnrollResponseItem、Error](https://github.com/elastic/fleet-server/blob/d05ee7b30ed62dba0cad7b31ff2ea003897cde82/internal/pkg/api/openapi.gen.go#L374)
+- **证据**：[validateRequest](https://github.com/elastic/fleet-server/blob/d05ee7b30ed62dba0cad7b31ff2ea003897cde82/internal/pkg/api/handleEnroll.go#L522)
 
 | 路径 | 类型及约束 | 含义或示例 |
 |---|---|---|
@@ -142,7 +214,17 @@ Agent 端 `enrollCmd.enroll` 获取 ECS 元数据、清洗标签并发送 `PERMA
 
 [生成 API 类型](https://github.com/elastic/fleet-server/blob/d05ee7b30ed62dba0cad7b31ff2ea003897cde82/internal/pkg/api/openapi.gen.go#L138)
 
-Agent 将 `Authorization: ApiKey <access-key>` 由 HTTP round tripper 注入。HTTP 401 被转换为 `ErrInvalidAPIKey`。连续七次收到该错误后，Agent 生成本地检测到的 `UNENROLL` 动作；其他返回会重置未认证计数。普通 check-in 请求失败经指数退避和抖动重试，请求上下文结束后退出。成功读取 `Warning` 头并报告给协调器，非空 `ack_token` 保存到状态存储。固定版本客户端请求类型不带 `poll_timeout`；`components` 显式序列化，nil 时为 JSON null。组件字段 `components[].id`、`.type`、`.status`、`.message` 都是 string；可省略的 `.units` 为 object[]，每项有同名四个 string 以及可省略动态 object `.payload`。未知组件状态和未知单元类型在收集时变为空串。 [客户端请求](https://github.com/elastic/elastic-agent/blob/96f2b9fc0dbddfcaac1c55e0e0bc9aed3bf6badb/internal/pkg/fleetapi/checkin_cmd.go) · [401 映射](https://github.com/elastic/elastic-agent/blob/96f2b9fc0dbddfcaac1c55e0e0bc9aed3bf6badb/internal/pkg/fleetapi/client/round_trippers.go#L37) · [退避及本地动作](https://github.com/elastic/elastic-agent/blob/96f2b9fc0dbddfcaac1c55e0e0bc9aed3bf6badb/internal/pkg/agent/application/gateway/fleet/fleet_gateway.go#L177)
+- **认证头**：Agent 将 `Authorization: ApiKey <access-key>` 由 HTTP round tripper 注入。
+- **错误映射**：HTTP 401 被转换为 `ErrInvalidAPIKey`。
+- **边界**：连续七次收到该错误后，Agent 生成本地检测到的 `UNENROLL` 动作；其他返回会重置未认证计数。
+- **重试**：普通 check-in 请求失败经指数退避和抖动重试，请求上下文结束后退出。
+- **响应**：成功读取 `Warning` 头并报告给协调器，非空 `ack_token` 保存到状态存储。
+- **请求**：固定版本客户端请求类型不带 `poll_timeout`；`components` 显式序列化，nil 时为 JSON null。
+- **字段**：组件字段 `components[].id`、`.type`、`.status`、`.message` 都是 string；可省略的 `.units` 为 object[]，每项有同名四个 string 以及可省略动态 object `.payload`。
+- **边界**：未知组件状态和未知单元类型在收集时变为空串。
+- **证据**：[客户端请求](https://github.com/elastic/elastic-agent/blob/96f2b9fc0dbddfcaac1c55e0e0bc9aed3bf6badb/internal/pkg/fleetapi/checkin_cmd.go)
+- **证据**：[401 映射](https://github.com/elastic/elastic-agent/blob/96f2b9fc0dbddfcaac1c55e0e0bc9aed3bf6badb/internal/pkg/fleetapi/client/round_trippers.go#L37)
+- **证据**：[退避及本地动作](https://github.com/elastic/elastic-agent/blob/96f2b9fc0dbddfcaac1c55e0e0bc9aed3bf6badb/internal/pkg/agent/application/gateway/fleet/fleet_gateway.go#L177)
 
 | `actions[].type` | 用途与 `actions[].data` 的已定义字段 |
 |---|---|
@@ -174,11 +256,19 @@ Agent 将 `Authorization: ApiKey <access-key>` 由 HTTP round tripper 注入。H
 | `upgrade_details.metadata` 失败态 | `error_msg`、`failed_state` 为 string，后者取下述升级状态集合中除 `UPG_FAILED` 外的值。 |
 | `upgrade_details.metadata` 调度态 | `scheduled_at` RFC3339。 |
 
-`events[].type` 声明值为 `ACTION` 动作、`ACTION_RESULT` 结果、`ERROR` 错误和 `STATE` 状态。 `events[].subtype` 声明值为 `ACKNOWLEDGED` 已确认、`CONFIG` 配置、`DATA_DUMP` 数据转储、`FAILED` 失败、`IN_PROGRESS` 执行中、`RUNNING` 运行、`STARTING` 启动、`STOPPED` 停止、`STOPPING` 正在停止和 `UNKNOWN` 未知。Agent 发送 `ACTION_RESULT` 与 `ACKNOWLEDGED`，两字段为兼容保留，Fleet Server 的结果语义看具体动作、错误和载荷。
+- **type**：`events[].type` 声明值为 `ACTION` 动作、`ACTION_RESULT` 结果、`ERROR` 错误和 `STATE` 状态。
+- **subtype**：`events[].subtype` 声明值为 `ACKNOWLEDGED` 已确认、`CONFIG` 配置、`DATA_DUMP` 数据转储、`FAILED` 失败、`IN_PROGRESS` 执行中、`RUNNING` 运行、`STARTING` 启动、`STOPPED` 停止、`STOPPING` 正在停止和 `UNKNOWN` 未知。
+- **结论**：Agent 发送 `ACTION_RESULT` 与 `ACKNOWLEDGED`，两字段为兼容保留，Fleet Server 的结果语义看具体动作、错误和载荷。
 
-升级状态为 `UPG_REQUESTED` 已请求、`UPG_SCHEDULED` 已调度、`UPG_DOWNLOADING` 下载中、`UPG_EXTRACTING` 解包、`UPG_REPLACING` 替换、`UPG_RESTARTING` 重启、`UPG_WATCHING` 观察、`UPG_ROLLBACK` 回滚、`UPG_FAILED` 失败。下载态 metadata 可省略；失败态须包含非空 `error_msg`；调度态须包含非零时间 `scheduled_at`。其余状态，包括未知值，落入该 metadata switch 的空默认分支。该验证还受对应升级动作和升级状态前置条件影响。 [服务端分支](https://github.com/elastic/fleet-server/blob/d05ee7b30ed62dba0cad7b31ff2ea003897cde82/internal/pkg/api/handleCheckin.go#L397)
+- **枚举**：升级状态为 `UPG_REQUESTED` 已请求、`UPG_SCHEDULED` 已调度、`UPG_DOWNLOADING` 下载中、`UPG_EXTRACTING` 解包、`UPG_REPLACING` 替换、`UPG_RESTARTING` 重启、`UPG_WATCHING` 观察、`UPG_ROLLBACK` 回滚、`UPG_FAILED` 失败。
+- **边界**：下载态 metadata 可省略；失败态须包含非空 `error_msg`；调度态须包含非零时间 `scheduled_at`。
+- **边界**：其余状态，包括未知值，落入该 metadata switch 的空默认分支。
+- **边界**：该验证还受对应升级动作和升级状态前置条件影响。
+- **证据**：[服务端分支](https://github.com/elastic/fleet-server/blob/d05ee7b30ed62dba0cad7b31ff2ea003897cde82/internal/pkg/api/handleCheckin.go#L397)
 
-[Agent ECS 序列化结构](https://github.com/elastic/elastic-agent/blob/96f2b9fc0dbddfcaac1c55e0e0bc9aed3bf6badb/internal/pkg/agent/application/info/agent_metadata.go#L25) · [枚举及嵌套定义](https://github.com/elastic/fleet-server/blob/d05ee7b30ed62dba0cad7b31ff2ea003897cde82/internal/pkg/api/openapi.gen.go#L50) · [ACK 处理](https://github.com/elastic/fleet-server/blob/d05ee7b30ed62dba0cad7b31ff2ea003897cde82/internal/pkg/api/handleAck.go#L106)
+- [Agent ECS 序列化结构](https://github.com/elastic/elastic-agent/blob/96f2b9fc0dbddfcaac1c55e0e0bc9aed3bf6badb/internal/pkg/agent/application/info/agent_metadata.go#L25)
+- [枚举及嵌套定义](https://github.com/elastic/fleet-server/blob/d05ee7b30ed62dba0cad7b31ff2ea003897cde82/internal/pkg/api/openapi.gen.go#L50)
+- [ACK 处理](https://github.com/elastic/fleet-server/blob/d05ee7b30ed62dba0cad7b31ff2ea003897cde82/internal/pkg/api/handleAck.go#L106)
 
 ### Check-in 线报文与动作确认
 
@@ -297,9 +387,15 @@ Agent 将 `Authorization: ApiKey <access-key>` 由 HTTP round tripper 注入。H
 
 ## Elasticsearch 数据面
 
-采集组件从 Agent 获得输出配置，直接对 Elasticsearch 执行 HTTPS Bulk 请求，以输出 API key 验证写权限。Fleet Server check-in 与 ACK 不承载常规遥测批次。以下区分 Bulk 通用能力与本次选择的数据流 `create` 写入路径。 [凭据说明](https://www.elastic.co/guide/en/fleet/8.17/fleet-enrollment-tokens.html) · [Bulk API 8.17](https://www.elastic.co/guide/en/elasticsearch/reference/8.17/docs-bulk.html)
+- **发起方**：采集组件从 Agent 获得输出配置，直接对 Elasticsearch 执行 HTTPS Bulk 请求，以输出 API key 验证写权限。
+- **边界**：Fleet Server check-in 与 ACK 不承载常规遥测批次。
+- **范围**：以下区分 Bulk 通用能力与本次选择的数据流 `create` 写入路径。
+- **证据**：[凭据说明](https://www.elastic.co/guide/en/fleet/8.17/fleet-enrollment-tokens.html) · [Bulk API 8.17](https://www.elastic.co/guide/en/elasticsearch/reference/8.17/docs-bulk.html)
 
-策略下发的 `actions[].data.policy.outputs.<name>.api_key` 为 `<id>:<secret>` 字符串，由 Fleet Server 在生成输出策略时注入。注册响应 `item.access_api_key` 则由 `Token()` 生成 Base64 格式。两处的进程内字符串格式因此不同，出站 HTTP `Authorization` 使用 `ApiKey` 方案。 [输出策略生成](https://github.com/elastic/fleet-server/blob/d05ee7b30ed62dba0cad7b31ff2ea003897cde82/internal/pkg/policy/policy_output.go#L362) · [两种编码](https://github.com/elastic/fleet-server/blob/d05ee7b30ed62dba0cad7b31ff2ea003897cde82/internal/pkg/apikey/apikey.go#L125)
+- **输出凭据**：策略下发的 `actions[].data.policy.outputs.<name>.api_key` 为 `<id>:<secret>` 字符串，由 Fleet Server 在生成输出策略时注入。
+- **通信凭据**：注册响应 `item.access_api_key` 则由 `Token()` 生成 Base64 格式。
+- **结论**：两处的进程内字符串格式因此不同，出站 HTTP `Authorization` 使用 `ApiKey` 方案。
+- **证据**：[输出策略生成](https://github.com/elastic/fleet-server/blob/d05ee7b30ed62dba0cad7b31ff2ea003897cde82/internal/pkg/policy/policy_output.go#L362) · [两种编码](https://github.com/elastic/fleet-server/blob/d05ee7b30ed62dba0cad7b31ff2ea003897cde82/internal/pkg/apikey/apikey.go#L125)
 
 | 路径 | 类型/线上约束 | 处理 |
 |---|---|---|
@@ -317,7 +413,12 @@ Agent 将 `Authorization: ApiKey <access-key>` 由 HTTP round tripper 注入。H
 
 [Bulk API 8.17](https://www.elastic.co/guide/en/elasticsearch/reference/8.17/docs-bulk.html) · [Data streams 8.17](https://www.elastic.co/guide/en/elasticsearch/reference/8.17/data-streams.html)
 
-Agent 的 Go 依赖固定 Beats 提交 `56dca4bbda40`。该输出客户端逐项处理 HTTP 状态：小于 300 标记成功，409 作为重复项处理且不重试，429 或 500 以上（含 500）重试。其余小于 500 的失败项按配置丢弃或写入死信。解析项状态失败时将剩余项加入重试集合，`RetryEvents` 提交的是失败子集。此处的 409 是当前客户端的本地处理策略。 [Agent 依赖](https://github.com/elastic/elastic-agent/blob/96f2b9fc0dbddfcaac1c55e0e0bc9aed3bf6badb/go.mod#L15) · [Beats 输出客户端](https://github.com/elastic/beats/blob/56dca4bbda40/libbeat/outputs/elasticsearch/client.go)
+- **版本**：Agent 的 Go 依赖固定 Beats 提交 `56dca4bbda40`。
+- **处理**：该输出客户端逐项处理 HTTP 状态：小于 300 标记成功，409 作为重复项处理且不重试，429 或 500 以上（含 500）重试。
+- **处理**：其余小于 500 的失败项按配置丢弃或写入死信。
+- **处理**：解析项状态失败时将剩余项加入重试集合，`RetryEvents` 提交的是失败子集。
+- **结论**：此处的 409 是当前客户端的本地处理策略。
+- **证据**：[Agent 依赖](https://github.com/elastic/elastic-agent/blob/96f2b9fc0dbddfcaac1c55e0e0bc9aed3bf6badb/go.mod#L15) · [Beats 输出客户端](https://github.com/elastic/beats/blob/56dca4bbda40/libbeat/outputs/elasticsearch/client.go)
 
 脱敏上报与回执示例（每段独立）：
 
@@ -332,7 +433,11 @@ Agent 的 Go 依赖固定 Beats 提交 `56dca4bbda40`。该输出客户端逐项
 
 ### 固定集成样本
 
-用 System 集成 `1.63.0` 的 `system.syslog` 数据流核对一种实际载荷。包 manifest 要求 Kibana `^8.17.0`，下载 ZIP 的 SHA-256 为 `c0a976f6931c32a55a032085a63d4e6df631a392818deae4192d8bb90a7bb02e`。包内证据为 `data_stream/syslog/{manifest.yml,fields/*.yml,agent/stream/*.yml.hbs,elasticsearch/ingest_pipeline/*.yml,sample_event.json}`。样本文件的事件由较早 Agent 生成，字段格式可作参考，8.17 的固定行为以包内配置与固定版本 Agent 源码为准。 [固定包下载](https://epr.elastic.co/epr/system/system-1.63.0.zip)
+- **样本**：用 System 集成 `1.63.0` 的 `system.syslog` 数据流核对一种实际载荷。
+- **版本**：包 manifest 要求 Kibana `^8.17.0`，下载 ZIP 的 SHA-256 为 `c0a976f6931c32a55a032085a63d4e6df631a392818deae4192d8bb90a7bb02e`。
+- **证据**：包内证据为 `data_stream/syslog/{manifest.yml,fields/*.yml,agent/stream/*.yml.hbs,elasticsearch/ingest_pipeline/*.yml,sample_event.json}`。
+- **边界**：样本文件的事件由较早 Agent 生成，字段格式可作参考，8.17 的固定行为以包内配置与固定版本 Agent 源码为准。
+- **链接**：[固定包下载](https://epr.elastic.co/epr/system/system-1.63.0.zip)
 
 | 字段路径 | 类型 | 来源、约束与阶段 |
 |---|---|---|

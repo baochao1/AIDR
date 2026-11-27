@@ -4,13 +4,11 @@
 
 | 读者 | 阅读入口 |
 |---|---|
-| 领导 | [三分钟汇报](docs/demo/aidr-management-brief.md) |
-| 第三方插件厂商 | [我方接入要求](docs/integration/aidr-vendor-handoff.md) |
-| 研发 | [研发接手指南](docs/overview/engineering-guide.md) |
-| 产品经理 | [产品范围与验收](docs/overview/product-scope.md) |
-| 演示操作 | [Windows Agent Demo 操作手册](docs/demo/windows-agent-demo.md) |
+| 设计与研发 | [Agent 协议调研索引](docs/research/agent-protocol/index.md) |
+| 厂商对比 | [候选清单与固定版本](docs/research/agent-protocol/candidates.md) |
+| 历史交付资料 | [归档文档导航](docs/archive/legacy-index.md) |
 
-完整目录和主文档归属见 [交付文档导航](docs/index.md)。
+当前设计基线以 [Agent 协议调研](docs/research/agent-protocol/index.md) 为准，后续设计基于这些厂商分析展开。上一阶段的架构、集成、演示与验收文档见 [归档](docs/archive/legacy-index.md)。完整目录见 [文档导航](docs/index.md)。
 
 ## 构建和回归
 

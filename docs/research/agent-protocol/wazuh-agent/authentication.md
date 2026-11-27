@@ -38,11 +38,40 @@ sequenceDiagram
 
 ## 逐步过程
 
-1. **管理登录**：`POST /security/user/authenticate`，Basic 凭据、空正文。客户端要求 2xx 且 `data.token` 为字符串；失败时本次不调用注册接口。
-2. **注册**：用管理令牌 `POST /agents`，正文含 `id`（UUID）、`name`、`key`（32 字符）、`type=Endpoint`、`version` 与 `host` 元数据。仅 HTTP 201 触发 `AgentInfo.Save`：重置默认值后保存名称、密钥、UUID 和组列表。响应正文无客户端依赖字段。
-3. **运行期认证**：`POST /api/v1/authentication` 提交 `uuid` 与 `key`，接受 2xx 中的顶层 `token`，读取 JWT `exp`，在到期前 2 秒唤醒更新。JWT 签发与服务端密钥存储需配套服务端源码确认。
-4. **业务请求**：事件批次以 Bearer JWT 发送到 `/api/v1/events/stateful` 或 `/stateless`，正文为换行分隔的 JSON：首行元数据，随后每条记录的元数据与 `data`。命令与文件接口同样带 Bearer。
-5. **失败处理**：401/403 触发重新鉴权并保留队列；传输超时或 5xx 按重试间隔等待，队列继续保留。成功回调才移除本批记录。
+### 1. Agent 登录管理 API
+
+- **发起方**：Agent → 管理 API
+- **请求**：`POST /security/user/authenticate`；请求头 Basic 凭据，请求体为空
+- **响应**：2xx 及字符串形式的 `data.token`（管理令牌）
+- **门槛**：Agent 只有取得令牌才继续注册，失败时本次不再注册
+
+### 2. Agent 向管理 API 注册
+
+- **发起方**：Agent → 管理 API
+- **请求**：`POST /agents`；请求头 Bearer 管理令牌；请求体 `id`（UUID）、`name`、`key`（32 字符）、`type=Endpoint`、`version`、`host` 元数据
+- **响应**：HTTP 201 时 Agent 触发 `AgentInfo.Save`：重置默认值后保存名称、密钥、UUID 和组列表
+- **边界**：响应正文中没有 Agent 依赖的字段
+
+### 3. Agent 换取运行期 JWT
+
+- **发起方**：Agent → 通信 API
+- **请求**：`POST /api/v1/authentication`，提交 `uuid` 与 `key`
+- **响应**：2xx 响应顶层 `token`（JWT）
+- **处理**：Agent 读取 `exp`，到期前 2 秒唤醒刷新
+- **边界**：JWT 签发方和服务端密钥存储仍需配套服务端源码确认
+
+### 4. Agent 发起业务请求
+
+- **发起方**：Agent → 通信 API
+- **请求**：事件批次发往 `/api/v1/events/stateful` 或 `/stateless`；请求头 Bearer JWT
+- **正文**：换行分隔的 JSON，首行元数据，随后每条记录的元数据与 `data`
+- **其他**：命令轮询和文件拉取接口同样携带 Bearer JWT
+
+### 5. Agent 处理失败
+
+- **401/403**：Agent 重新鉴权并保留待发队列
+- **超时/5xx**：Agent 按重试间隔等待，队列继续保留
+- **成功**：通信 API 返回成功回调后，Agent 才移除本批记录
 
 ## 失败与重试
 

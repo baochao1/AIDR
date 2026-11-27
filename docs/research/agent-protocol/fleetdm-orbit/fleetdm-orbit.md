@@ -4,14 +4,37 @@
 
 ## Orbit 注册和运行期认证
 
-1. Orbit 在进程级注册锁内读取 `<root-dir>/secret-orbit-node-key.txt`。非空且未标记强制重注册时复用。缺失或只含空白则发起 JSON `POST /api/fleet/orbit/enroll`。注册密钥可来自参数、文件、系统密钥库或平台 MDM 交付。收到新密钥后，客户端先写同目录临时文件、同步并关闭，再替换原文件。Windows 在写之前限制 ACL。写入失败时原文件仍保留，注册成功可能已经替换服务端密钥。 [启动密钥加载](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/orbit/cmd/orbit/orbit.go#L334-L452) · [客户端注册和持久化](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/client/orbit_client.go#L769-L977) · [文件名](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/orbit/pkg/constant/constant.go#L22-L32)
+### 1. 本地节点密钥与注册
+
+- **读取**：Orbit 在进程级注册锁内读取 `<root-dir>/secret-orbit-node-key.txt`。非空且未标记强制重注册时复用
+- **请求**：缺失或只含空白则发起 JSON `POST /api/fleet/orbit/enroll`。注册密钥可来自参数、文件、系统密钥库或平台 MDM 交付
+- **落盘**：收到新密钥后，客户端先写同目录临时文件、同步并关闭，再替换原文件。Windows 在写之前限制 ACL
+- **边界**：写入失败时原文件仍保留，注册成功可能已经替换服务端密钥
+- **证据**：[启动密钥加载](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/orbit/cmd/orbit/orbit.go#L334-L452) · [客户端注册和持久化](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/client/orbit_client.go#L769-L977)
+- **证据**：[文件名](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/orbit/pkg/constant/constant.go#L22-L32)
+
 2. 管理端在启用时先匹配一次性注册密钥与设备平台及硬件标识，取密钥关联团队。否则验证共享密钥并取其团队。使用 `osquery_identifier`，缺失时使用 `hardware_uuid`，定位已有主机身份证书。存在证书时要求 HTTP 签名且序列号匹配。服务端生成配置长度的随机凭据，并交给数据存储完成主机注册或更新及身份关联。 [服务端注册](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/orbit.go#L277-L549)
-3. `POST /api/fleet/orbit/config` 等 Orbit 接口从 JSON `orbit_node_key` 取值，专门的请求头认证入口使用 `Authorization: Node key <credential>`。服务端用 Orbit 密钥查主机，绑定身份证书的主机同时验证 HTTP 签名。密钥空、找不到主机或身份校验失败返回 401。后端内部错误走独立错误编码。 [认证入口](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/endpoint_utils.go#L272-L325) · [认证实现](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/orbit.go#L156-L181)
-4. 客户端认证请求收到 401 时启动计时。后续 401 距首次已至少 45 秒才置强制重注册。成功认证清掉计时。已配置本地身份证书路径时，强制分支还尝试删除证书并触发重启。之后获取节点密钥时重新注册。配置接口对网络或 5xx 错误额外重试一次。 [配置拉取及重试](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/client/orbit_client.go#L591-L630) · [客户端失效处理](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/client/orbit_client.go#L978-L1056)
+
+### 3. 运行期认证入口
+
+- **请求**：`POST /api/fleet/orbit/config` 等 Orbit 接口从 JSON `orbit_node_key` 取值，专门的请求头认证入口使用 `Authorization: Node key <credential>`
+- **处理**：服务端用 Orbit 密钥查主机，绑定身份证书的主机同时验证 HTTP 签名
+- **响应**：密钥空、找不到主机或身份校验失败返回 401。后端内部错误走独立错误编码
+- **证据**：[认证入口](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/endpoint_utils.go#L272-L325) · [认证实现](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/orbit.go#L156-L181)
+
+### 4. 401 计时与强制重注册
+
+- **计时**：客户端认证请求收到 401 时启动计时。后续 401 距首次已至少 45 秒才置强制重注册。成功认证清掉计时
+- **处理**：已配置本地身份证书路径时，强制分支还尝试删除证书并触发重启。之后获取节点密钥时重新注册
+- **配置**：配置接口对网络或 5xx 错误额外重试一次
+- **证据**：[配置拉取及重试](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/client/orbit_client.go#L591-L630) · [客户端失效处理](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/client/orbit_client.go#L978-L1056)
 
 ### 注册字段字典
 
-JSON 无字段编号。前九个请求字段是客户端总会序列化的字符串，若服务端收到省略则读为空字符串。后两个为可选空值省略字段。 [请求及响应结构](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/fleet/api_orbit.go#L14-L95) · [构造请求](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/client/orbit_client.go#L769-L799)
+- **字段编号**：JSON 无字段编号
+- **请求字段**：前九个请求字段是客户端总会序列化的字符串，若服务端收到省略则读为空字符串
+- **可选字段**：后两个为可选空值省略字段
+- **证据**：[请求及响应结构](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/fleet/api_orbit.go#L14-L95) · [构造请求](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/client/orbit_client.go#L769-L799)
 
 | 线上字段 | 类型及约束 | 用途／示例 |
 |---|---|---|
@@ -30,11 +53,22 @@ JSON 无字段编号。前九个请求字段是客户端总会序列化的字符
 | 后续请求 `orbit_node_key` | string，必需 | JSON 认证入口的 Orbit 凭据 |
 | 请求头 `Authorization` | string，专用请求头认证路径必填 | `Node key REDACTED` |
 
-HTTP 注册错误由通用编码器输出 `message`（string）、可选 `code`（integer，具体通用错误类型才使用）、`errors[]`（对象数组，常规项 `name: "base"`、`reason: string`）、`uuid`（string，可省略，关联错误或请求）。端用户交互认证的判定为 HTTP 401 加精确的 `message: "END_USER_AUTH_REQUIRED"`。注册密钥或身份匹配失败为 HTTP 401，公开消息为 `Authentication failed`。运行期节点凭据拒绝为 HTTP 401，公开消息为 `Authentication required`。未指定状态的 `OrbitError` 默认 HTTP 500。 [错误类型](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/fleet/errors.go#L570-L607) · [HTTP 编码器](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/platform/endpointer/transport_error.go#L28-L46)
+- **错误结构**：HTTP 注册错误由通用编码器输出 `message`（string）、可选 `code`（integer，具体通用错误类型才使用）、`errors[]`（对象数组，常规项 `name: "base"`、`reason: string`）、`uuid`（string，可省略，关联错误或请求）
+- **端用户认证**：端用户交互认证的判定为 HTTP 401 加精确的 `message: "END_USER_AUTH_REQUIRED"`
+- **注册失败**：注册密钥或身份匹配失败为 HTTP 401，公开消息为 `Authentication failed`
+- **运行期拒绝**：运行期节点凭据拒绝为 HTTP 401，公开消息为 `Authentication required`
+- **默认状态**：未指定状态的 `OrbitError` 默认 HTTP 500
+- **证据**：[错误类型](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/fleet/errors.go#L570-L607) · [HTTP 编码器](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/platform/endpointer/transport_error.go#L28-L46)
 
 ### 主机身份证书
 
-商业版主机身份路径以 SCEP 在 `/api/fleet/orbit/host_identity/scep` 签发或更新证书。初始签发校验 CSR 内 `ChallengePassword` 与注册密钥，核对证书名称与现有记录。续期配置可要求旧公钥对新 CSR 的公钥做证明。CA 能力文本包含 `SHA-256`、`AES`、`POSTPKIOperation`、`Fleet-Renewal-Key-Binding`。证书签发后，Agent 的 HTTP 请求由主机密钥签名，服务端验证后将证书身份写入请求上下文，再由 Orbit 注册或运行期认证核对绑定。运行期要求证书 CN 与主机 osquery 标识相同，证书关联主机 ID 存在且一致。SCEP 线上字段与固定依赖的处理见下表。 [服务端 SCEP](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/ee/server/service/hostidentity/scep.go) · [续期证明](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/ee/pkg/hostidentity/types/host_identity_certificates.go) · [Agent 证书管理](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/ee/orbit/pkg/hostidentity/host_identity.go)
+- **路径**：商业版主机身份路径以 SCEP 在 `/api/fleet/orbit/host_identity/scep` 签发或更新证书
+- **签发与续期**：初始签发校验 CSR 内 `ChallengePassword` 与注册密钥，核对证书名称与现有记录。续期配置可要求旧公钥对新 CSR 的公钥做证明
+- **CA 能力**：CA 能力文本包含 `SHA-256`、`AES`、`POSTPKIOperation`、`Fleet-Renewal-Key-Binding`
+- **签名与绑定**：证书签发后，Agent 的 HTTP 请求由主机密钥签名，服务端验证后将证书身份写入请求上下文，再由 Orbit 注册或运行期认证核对绑定
+- **运行期约束**：运行期要求证书 CN 与主机 osquery 标识相同，证书关联主机 ID 存在且一致。SCEP 线上字段与固定依赖的处理见下表
+- **证据**：[服务端 SCEP](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/ee/server/service/hostidentity/scep.go) · [续期证明](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/ee/pkg/hostidentity/types/host_identity_certificates.go)
+- **证据**：[Agent 证书管理](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/ee/orbit/pkg/hostidentity/host_identity.go)
 
 | 字段 | 约束 |
 |---|---|
@@ -44,9 +78,18 @@ HTTP 注册错误由通用编码器输出 `message`（string）、可选 `code`�
 | `keyid` | 证书序列号的十进制字符串，服务端据此定位证书，并从证书公钥曲线选择算法 |
 | 算法闭集 | ECDSA P-256/SHA-256、ECDSA P-384/SHA-384 |
 
-缺失签名头时，强制签名配置直接给出 401，其余请求进入业务认证。无效签名同样返回 401，内部身份提取错误返回 500。 [签名配置](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/pkg/fleethttpsig/fleethttpsig.go) · [服务端签名中间件](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/ee/server/service/hostidentity/httpsig/middleware.go) · [证书绑定检查](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/ee/server/service/hostidentity/httpsig/httpsig.go)
+- **签名缺失**：缺失签名头时，强制签名配置直接给出 401，其余请求进入业务认证
+- **签名无效**：无效签名同样返回 401，内部身份提取错误返回 500
+- **证据**：[签名配置](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/pkg/fleethttpsig/fleethttpsig.go) · [服务端签名中间件](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/ee/server/service/hostidentity/httpsig/middleware.go)
+- **证据**：[证书绑定检查](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/ee/server/service/hostidentity/httpsig/httpsig.go)
 
-`X-Fleet-Capabilities` 是双方的逗号分隔字符串集合，顺序无语义。Agent 默认报告 `escrow_buddy`、`setup_experience`。非 macOS 增加 `end_user_auth`，允许客户端配置移除。Windows 另报告 `windows_mdm_sync`、`windows_managed_local_account`、`windows_bitlocker_pin`。服务端报告 `orbit_endpoints`、`token_rotation`、`end_user_email`、`escrow_buddy`、`linux_disk_encryption_escrow`、`luks_recovery_key_escrow`、`linux_escrow_status`、`setup_experience`、`web_setup_experience`、`macos_web_setup_experience`、`windows_disk_encryption_error_keeps_key`、`fleet_agent_names`。解析器接受任意成员，功能判断只检查对应已知值。[能力定义与序列化](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/fleet/capabilities.go)
+- **格式**：`X-Fleet-Capabilities` 是双方的逗号分隔字符串集合，顺序无语义
+- **Agent 默认**：Agent 默认报告 `escrow_buddy`、`setup_experience`
+- **非 macOS**：非 macOS 增加 `end_user_auth`，允许客户端配置移除
+- **Windows**：Windows 另报告 `windows_mdm_sync`、`windows_managed_local_account`、`windows_bitlocker_pin`
+- **服务端**：服务端报告 `orbit_endpoints`、`token_rotation`、`end_user_email`、`escrow_buddy`、`linux_disk_encryption_escrow`、`luks_recovery_key_escrow`、`linux_escrow_status`、`setup_experience`、`web_setup_experience`、`macos_web_setup_experience`、`windows_disk_encryption_error_keeps_key`、`fleet_agent_names`
+- **解析**：解析器接受任意成员，功能判断只检查对应已知值
+- **证据**：[能力定义与序列化](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/fleet/capabilities.go)
 
 #### SCEP HTTP 与 CMS 字段
 
@@ -62,7 +105,10 @@ HTTP 注册错误由通用编码器输出 `message`（string）、可选 `code`�
 | `CertRep` 成功内容 | 签名响应封装加密的签发证书集合，收件人为请求的临时签名证书。Agent 用 CA 链验签、用临时私钥解密并选择与 CSR 公钥一致的证书 |
 | `CertRep` 失败内容 | CMS 属性携带失败状态及原因，缺少加密证书正文。Fleet 在解密或签发错误时构造 `badRequest`，空、过深或无法解析的 BER 报文返回 HTTP 400，签发限流返回 HTTP 429 |
 
-[Orbit SCEP 客户端](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/ee/orbit/pkg/scep/scep.go#L147-L214) · [签发与续期检查](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/ee/server/service/hostidentity/scep.go#L112-L273) · [服务端响应](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/ee/server/service/hostidentity/scep.go#L285-L391) · [客户端响应处理](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/mdm/scep/enrollment/enrollment.go#L71-L165) · [RFC 8894 SCEP 消息和 HTTP](https://www.rfc-editor.org/rfc/rfc8894.html#section-3)
+- **客户端**：[Orbit SCEP 客户端](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/ee/orbit/pkg/scep/scep.go#L147-L214)
+- **签发与续期**：[签发与续期检查](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/ee/server/service/hostidentity/scep.go#L112-L273)
+- **响应**：[服务端响应](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/ee/server/service/hostidentity/scep.go#L285-L391) · [客户端响应处理](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/mdm/scep/enrollment/enrollment.go#L71-L165)
+- **规范**：[RFC 8894 SCEP 消息和 HTTP](https://www.rfc-editor.org/rfc/rfc8894.html#section-3)
 
 以下 CMS 签名属性的 OID 前缀为 `2.16.840.1.113733.1.9`。本文列出 Fleet 使用的分支，并记录固定依赖解析器可识别的额外值。
 
@@ -80,7 +126,14 @@ HTTP 注册错误由通用编码器输出 `message`（string）、可选 `code`�
 
 ## Agent WebSocket
 
-`GET /api/fleet/orbit/notifications` 仅在服务端启用 WebSocket 传输且通知 Hub 可用时注册，关闭时得到 404。客户端把 HTTPS 转换为 WSS，HTTP 转换为 WS。请求使用 WebSocket 升级头和 `Authorization: Node key <credential>`。服务端以区分大小写的前缀匹配，去除值两端空白后认证。失败返回纯文本 HTTP 401，成功升级后按主机 ID 维护连接。客户端可配置根 CA 和 TLS 客户端证书。此处的 WebSocket 管理器升级请求只设置 Orbit 节点密钥，不配置 HTTP 消息签名。要求签名的主机因此回退到常规带签名的 HTTP 轮询。 [路由](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/handler.go#L1080-L1088) · [服务端升级鉴权](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/agentws/handler.go) · [Agent 握手](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/orbit/pkg/wstransport/manager.go#L395-L445)
+- **路由**：`GET /api/fleet/orbit/notifications` 仅在服务端启用 WebSocket 传输且通知 Hub 可用时注册，关闭时得到 404
+- **协议转换**：客户端把 HTTPS 转换为 WSS，HTTP 转换为 WS
+- **请求**：请求使用 WebSocket 升级头和 `Authorization: Node key <credential>`
+- **服务端处理**：服务端以区分大小写的前缀匹配，去除值两端空白后认证。失败返回纯文本 HTTP 401，成功升级后按主机 ID 维护连接
+- **TLS 配置**：客户端可配置根 CA 和 TLS 客户端证书
+- **边界**：此处的 WebSocket 管理器升级请求只设置 Orbit 节点密钥，不配置 HTTP 消息签名。要求签名的主机因此回退到常规带签名的 HTTP 轮询
+- **证据**：[路由](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/handler.go#L1080-L1088) · [服务端升级鉴权](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/agentws/handler.go)
+- **证据**：[Agent 握手](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/orbit/pkg/wstransport/manager.go#L395-L445)
 
 | JSON 字段 | 类型及缺省 | 枚举与处理 |
 |---|---|---|
@@ -90,17 +143,34 @@ HTTP 注册错误由通用编码器输出 `message`（string）、可选 `code`�
 | `reason` | 同上 | `distributed/read` 取 `label`、`policy`、`detail`、`refetch` 或 `live-<十进制活动 ID>`。`host-not-found` 是服务端内部标记，触发关闭旧连接 |
 | `data` | 任意 JSON RawMessage，可省略 | 预留。固定版本的发送队列只构造 `type` 和 `reason` |
 
-服务端按 `type` 合并尚未发出的通知，并保留最新原因。同一次取队列按类型排序。Agent 无应用层回执或序号。应用消息解码失败时 Agent 结束读循环，恢复轮询，并带抖动重连。服务端读循环消费控制帧并丢弃数据帧，最大入站应用消息为 1024 字节，超限关闭码 1009。默认 Agent 参数为轮询 10 秒、首次握手上限 30 秒、重连退避从 5 秒到 5 分钟，已连接后断开时抖动小于 30 秒，每 30 秒发送空 Ping，Pong 超时为 15 秒。 [通知定义](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/fleet/agent_websocket.go) · [队列与帧](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/agentws/conn.go) · [Agent 处理](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/orbit/pkg/wstransport/manager.go#L53-L278)
+- **队列**：服务端按 `type` 合并尚未发出的通知，并保留最新原因。同一次取队列按类型排序
+- **回执**：Agent 无应用层回执或序号
+- **解码失败**：应用消息解码失败时 Agent 结束读循环，恢复轮询，并带抖动重连
+- **帧处理**：服务端读循环消费控制帧并丢弃数据帧，最大入站应用消息为 1024 字节，超限关闭码 1009
+- **默认参数**：默认 Agent 参数为轮询 10 秒、首次握手上限 30 秒、重连退避从 5 秒到 5 分钟，已连接后断开时抖动小于 30 秒，每 30 秒发送空 Ping，Pong 超时为 15 秒
+- **证据**：[通知定义](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/fleet/agent_websocket.go) · [队列与帧](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/agentws/conn.go)
+- **证据**：[Agent 处理](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/orbit/pkg/wstransport/manager.go#L53-L278)
 
 ```json
 {"type":"distributed/read","reason":"live-42"}
 ```
 
-唤醒后 Orbit 的本机 Thrift 扩展把 HTTPS 拉到的查询交给 osquery。结果再由 Orbit 通过 HTTPS 上传。调用 osquery 接口时使用本体的 Orbit 密钥，同时发送 JSON `node_key` 和 `Authorization: NodeKey <credential>`，服务端按配置选择其中之一。注意 Orbit 自身接口使用 `Node key <credential>`（见上文），两者 scheme 不同，按各自路由要求填写。调度状态依次为 `idle`、`reading`、`delivered`、`awaitingWrite`。执行期间重复触发合并为一次后续迭代。查询结果通过本地插件转换为 HTTPS `queries`、`statuses`、`messages`、`stats`。其中每个查询的动态行值为字符串，空结果正规化为空数组，`accelerate` 以秒计。 [本地分布式扩展](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/orbit/pkg/wstransport/distributed.go) · [HTTP 分布式客户端](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/client/orbit_distributed.go)
+- **交付**：唤醒后 Orbit 的本机 Thrift 扩展把 HTTPS 拉到的查询交给 osquery。结果再由 Orbit 通过 HTTPS 上传
+- **凭据**：调用 osquery 接口时使用本体的 Orbit 密钥，同时发送 JSON `node_key` 和 `Authorization: NodeKey <credential>`，服务端按配置选择其中之一
+- **边界**：注意 Orbit 自身接口使用 `Node key <credential>`（见上文），两者 scheme 不同，按各自路由要求填写
+- **调度状态**：调度状态依次为 `idle`、`reading`、`delivered`、`awaitingWrite`。执行期间重复触发合并为一次后续迭代
+- **结果转换**：查询结果通过本地插件转换为 HTTPS `queries`、`statuses`、`messages`、`stats`。其中每个查询的动态行值为字符串，空结果正规化为空数组，`accelerate` 以秒计
+- **证据**：[本地分布式扩展](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/orbit/pkg/wstransport/distributed.go) · [HTTP 分布式客户端](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/client/orbit_distributed.go)
 
 ## Orbit 配置接口
 
-`POST /api/fleet/orbit/config` 的 JSON 正文使用 `orbit_node_key` 字符串。可选 `X-Fleet-Orbit-Config-Fallback-Changes` 为逗号分隔的变化字段名，用于上报轮询发现但未收到通知的更新。嵌套通知项加前缀 `notifications.`。服务端从经过认证的 Host 读取团队、设备能力、MDM 状态和配置，返回运行参数及通知。客户端应用版本匹配的参数与接收器。缺失指针字段通常表示维持既有设置或禁用可选行为，逐项见下表。 [HTTP 类型](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/fleet/api_orbit.go#L47-L84) · [配置字段](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/fleet/orbit.go#L9-L182) · [服务端实现](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/orbit.go#L683-L900)
+- **请求**：`POST /api/fleet/orbit/config` 的 JSON 正文使用 `orbit_node_key` 字符串
+- **回退字段**：可选 `X-Fleet-Orbit-Config-Fallback-Changes` 为逗号分隔的变化字段名，用于上报轮询发现但未收到通知的更新
+- **嵌套项**：嵌套通知项加前缀 `notifications.`
+- **处理**：服务端从经过认证的 Host 读取团队、设备能力、MDM 状态和配置，返回运行参数及通知。客户端应用版本匹配的参数与接收器
+- **边界**：缺失指针字段通常表示维持既有设置或禁用可选行为，逐项见下表
+- **证据**：[HTTP 类型](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/fleet/api_orbit.go#L47-L84) · [配置字段](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/fleet/orbit.go#L9-L182)
+- **证据**：[服务端实现](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/server/service/orbit.go#L683-L900)
 
 | 响应字段 | 类型、缺省及消费 |
 |---|---|

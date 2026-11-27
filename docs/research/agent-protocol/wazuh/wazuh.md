@@ -1,6 +1,12 @@
 # Wazuh 4.14.0 认证与数据面协议
 
-本章以 [Wazuh v4.14.0 · e0707d7](https://github.com/wazuh/wazuh/tree/e0707d735cc60b38da2723376a2f0faeffe697bb) 为 Agent 与 Manager 的共同固定版本。AIDR 前期引用的 [wazuh-agent · ca21132](https://github.com/wazuh/wazuh-agent/tree/ca211324af5c88caf77fcd57cab0e98475f8e4ce) 是独立实验项目，其 README 说明当前 Agent 尚不完整且不兼容正式 Manager。它可用于参考本地持久化队列，本章的注册和网络协议均来自 Wazuh 4.14.0。
+本章以 [Wazuh v4.14.0 · e0707d7](https://github.com/wazuh/wazuh/tree/e0707d735cc60b38da2723376a2f0faeffe697bb) 为 Agent 与 Manager 的共同固定版本。
+
+AIDR 前期引用的 [wazuh-agent · ca21132](https://github.com/wazuh/wazuh-agent/tree/ca211324af5c88caf77fcd57cab0e98475f8e4ce) 是独立实验项目。
+
+其 README 说明当前 Agent 尚不完整且不兼容正式 Manager。
+
+它可用于参考本地持久化队列，本章的注册和网络协议均来自 Wazuh 4.14.0。
 
 ## 先看两条链路
 
@@ -18,7 +24,16 @@
 
 ### Agent 有证书认证吗？
 
-**有。Wazuh 4.14.0 在注册链路支持双向证书验证。** Agent 用 `server_ca_path` 配置验证 Manager 的 CA，注册库还检查 Manager 证书身份。反方向由 Agent 通过 `agent_certificate_path` 和 `agent_key_path` 提供证书与私钥，Manager 配置 `ssl_agent_ca` 确定可信 CA，可用 `ssl_verify_host` 额外校验客户端证书身份。注册密码与证书为独立配置。注册成功后，1514 安全消息使用注册取得的共享密钥。 [Agent 配置](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/config/client-config.c) · [Agent 注册库](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/shared/enrollment_op.c) · [Manager 验证](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/os_auth/main-server.c)
+**有。Wazuh 4.14.0 在注册链路支持双向证书验证。**
+
+- **Agent 验证 Manager**：Agent 用 `server_ca_path` 配置验证 Manager 的 CA，注册库还检查 Manager 证书身份。
+- **Manager 验证 Agent**：反方向由 Agent 通过 `agent_certificate_path` 和 `agent_key_path` 提供证书与私钥，Manager 配置 `ssl_agent_ca` 确定可信 CA，可用 `ssl_verify_host` 额外校验客户端证书身份。
+- **独立配置**：注册密码与证书为独立配置。
+- **运行期凭据**：注册成功后，1514 安全消息使用注册取得的共享密钥。
+- **证据**：
+  - [Agent 配置](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/config/client-config.c)
+  - [Agent 注册库](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/shared/enrollment_op.c)
+  - [Manager 验证](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/os_auth/main-server.c)
 
 ```mermaid
 sequenceDiagram
@@ -43,15 +58,54 @@ sequenceDiagram
 
 ## 注册和 Agent 生命周期
 
-1. Agent 配置 Manager 地址，通过默认 TCP 1515 的 TLS 连接向 `wazuh-authd` 注册。可配置验证 Manager CA、校验 Manager 身份、提供客户端证书和私钥以及使用注册密码。证书验证和共享密码开关由部署配置决定。固定 authd 配置默认启用远程注册，`use_password`、`use_source_ip` 与 `verify_host` 默认为关闭。Agent 没有配置 CA 时不会在注册库执行 Manager 身份校验。Agent 自动注册和 `agent-auth` 调用同一注册库。 [Agent 注册库](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/shared/enrollment_op.c) · [agent-auth 入口](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/os_auth/main-client.c#L280-L321) · [Manager TLS 与认证配置](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/config/authd-config.c)
-2. Manager 先按顺序解析请求。按配置验证共享密码、名称、版本、地址及组，检查名称或 IP 冲突。可配置替换旧记录，条件包括是否启用替换、旧记录断开时间、注册时间和已有密钥摘要是否相同。默认启用替换与键失配检查，断开和注册时间阈值各为 3600 秒。单节点由 authd 添加记录，集群 worker 把新增请求转交本地集群注册逻辑。成功时返回 ID、名称、绑定地址和新密钥。 [解析与替换](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/os_auth/auth.c#L66-L377) · [Manager 注册处理](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/os_auth/main-server.c#L709-L749)
-3. Agent 验证响应四项并保存本地 `client.keys`。Manager 在注册处理与后台写入流程维护自身的键记录。数据链路使用 `client.keys` 中的代理身份和共享密钥，注册密码不进入运行期数据帧。失效方式为 Manager 删除或替换 Agent 记录，地址或密钥不再匹配时后续帧被拒绝。已有密钥的 Agent 在配置的重连阶段可尝试重新注册。 [Agent 响应与持久化](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/shared/enrollment_op.c#L351-L487) · [Manager 键写入](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/os_auth/main-server.c) · [重连逻辑](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/client-agent/start_agent.c) · [密钥记录格式](https://documentation.wazuh.com/4.14/development/client-keys.html)
+### 1. Agent 建立注册连接
+
+- **发起方**：Agent 配置 Manager 地址，通过默认 TCP 1515 的 TLS 连接向 `wazuh-authd` 注册。
+- **可选配置**：可配置验证 Manager CA、校验 Manager 身份、提供客户端证书和私钥以及使用注册密码。
+- **边界**：证书验证和共享密码开关由部署配置决定。Agent 没有配置 CA 时不会在注册库执行 Manager 身份校验。
+- **默认值**：固定 authd 配置默认启用远程注册，`use_password`、`use_source_ip` 与 `verify_host` 默认为关闭。
+- **结论**：Agent 自动注册和 `agent-auth` 调用同一注册库。
+- **证据**：
+  - [Agent 注册库](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/shared/enrollment_op.c)
+  - [agent-auth 入口](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/os_auth/main-client.c#L280-L321)
+  - [Manager TLS 与认证配置](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/config/authd-config.c)
+
+### 2. Manager 解析请求并分配键记录
+
+- **处理**：Manager 先按顺序解析请求。按配置验证共享密码、名称、版本、地址及组，检查名称或 IP 冲突。
+- **配置**：可配置替换旧记录，条件包括是否启用替换、旧记录断开时间、注册时间和已有密钥摘要是否相同。
+- **默认值**：默认启用替换与键失配检查，断开和注册时间阈值各为 3600 秒。
+- **边界**：单节点由 authd 添加记录，集群 worker 把新增请求转交本地集群注册逻辑。
+- **响应**：成功时返回 ID、名称、绑定地址和新密钥。
+- **证据**：
+  - [解析与替换](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/os_auth/auth.c#L66-L377)
+  - [Manager 注册处理](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/os_auth/main-server.c#L709-L749)
+
+### 3. Agent 保存键并进入数据链路
+
+- **处理**：Agent 验证响应四项并保存本地 `client.keys`。
+- **处理**：Manager 在注册处理与后台写入流程维护自身的键记录。
+- **处理**：数据链路使用 `client.keys` 中的代理身份和共享密钥，注册密码不进入运行期数据帧。
+- **边界**：失效方式为 Manager 删除或替换 Agent 记录，地址或密钥不再匹配时后续帧被拒绝。
+- **结论**：已有密钥的 Agent 在配置的重连阶段可尝试重新注册。
+- **证据**：
+  - [Agent 响应与持久化](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/shared/enrollment_op.c#L351-L487)
+  - [Manager 键写入](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/os_auth/main-server.c)
+  - [重连逻辑](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/client-agent/start_agent.c)
+  - [密钥记录格式](https://documentation.wazuh.com/4.14/development/client-keys.html)
 
 ### 注册报文字段
 
 TLS 内部协议为顺序文本。客户端按下表顺序构造并追加换行。单引号是线上分隔符。以下响应示例是脱敏文本。 [请求构造器](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/shared/enrollment_op.c#L291-L327) · [服务端解析](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/os_auth/auth.c#L66-L232)
 
-按固定版本的 Manager，响应在 TLS 连接中直接写出，成功文本以闭合单引号结束，失败文本以连接结束收尾，响应端未追加 LF。调用方需要保留 ID 的前导零、四个字段的顺序及引号。Agent 写入键文件时只保留引号内的四项内容，再追加 LF。缺失引号、四字段格式不合法或持久化失败时，Agent 不进入注册完成状态。证书失败、响应为空、仅收到错误文本和本地写文件失败是不同的失败阶段。 [响应构造与连接处理](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/os_auth/main-server.c) · [Agent 读取及保存](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/shared/enrollment_op.c#L351-L487)
+- **响应边界**：按固定版本的 Manager，响应在 TLS 连接中直接写出，成功文本以闭合单引号结束，失败文本以连接结束收尾，响应端未追加 LF。
+- **调用方约束**：调用方需要保留 ID 的前导零、四个字段的顺序及引号。
+- **落盘**：Agent 写入键文件时只保留引号内的四项内容，再追加 LF。
+- **失败条件**：缺失引号、四字段格式不合法或持久化失败时，Agent 不进入注册完成状态。
+- **失败阶段**：证书失败、响应为空、仅收到错误文本和本地写文件失败是不同的失败阶段。
+- **证据**：
+  - [响应构造与连接处理](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/os_auth/main-server.c)
+  - [Agent 读取及保存](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/shared/enrollment_op.c#L351-L487)
 
 | 线上段 | 类型、约束与用途 |
 |---|---|
@@ -97,11 +151,25 @@ ERROR: Duplicate agent name: example-host. Unable to add agent
 | 启动同步 | 无 ACK 或收到启动错误 | 在当前服务器上按 `retry_interval` 等待，尝试 `max_retries` 次。用完后若启用注册，则尝试注册，成功后多做一次启动同步 | 已连接或切换到下一配置服务器 |
 | 已连接 | 连接中断且需要重连 | 重新进入启动同步流程 | 启动同步 |
 
-服务端处理顺序是 TLS 验证、注册文本解析、操作权限与准入检查、键记录分配、返回结果。启动与事件通道由 remoted 完成凭据与消息校验后区分控制载荷和业务事件。Windows 注册写键文件与非 Windows 的临时文件替换路径不同，见实现。 [Manager 注册处理](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/os_auth/main-server.c) · [Agent 重连状态](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/client-agent/start_agent.c#L128-L186) · [Agent 落盘](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/shared/enrollment_op.c#L398-L447)
+- **服务端顺序**：服务端处理顺序是 TLS 验证、注册文本解析、操作权限与准入检查、键记录分配、返回结果。
+- **运行期通道**：启动与事件通道由 remoted 完成凭据与消息校验后区分控制载荷和业务事件。
+- **平台差异**：Windows 注册写键文件与非 Windows 的临时文件替换路径不同，见实现。
+- **证据**：
+  - [Manager 注册处理](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/os_auth/main-server.c)
+  - [Agent 重连状态](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/client-agent/start_agent.c#L128-L186)
+  - [Agent 落盘](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/shared/enrollment_op.c#L398-L447)
 
 ## 运行期数据帧
 
-默认数据端口 TCP 1514，Manager 可以配置 UDP。TCP 在数据前写 4 字节小端无符号 `payload_size`，值为后续负载字节数。UDP 直接发送负载。Manager 将可变地址 Agent 的外层 ID 与来源地址用于查找键，固定单主机地址可由地址定位。随后验证并解开安全消息。 [官方架构](https://documentation.wazuh.com/4.14/getting-started/architecture.html) · [TCP 帧代码](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/os_net/os_net.c#L695-L752) · [Manager 收包](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/remoted/secure.c#L556-L787)
+- **端口**：默认数据端口 TCP 1514，Manager 可以配置 UDP。
+- **TCP 封装**：TCP 在数据前写 4 字节小端无符号 `payload_size`，值为后续负载字节数。
+- **UDP 封装**：UDP 直接发送负载。
+- **查键**：Manager 将可变地址 Agent 的外层 ID 与来源地址用于查找键，固定单主机地址可由地址定位。
+- **处理**：随后验证并解开安全消息。
+- **证据**：
+  - [官方架构](https://documentation.wazuh.com/4.14/getting-started/architecture.html)
+  - [TCP 帧代码](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/os_net/os_net.c#L695-L752)
+  - [Manager 收包](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/remoted/secure.c#L556-L787)
 
 | 层 | 线上字段 | 类型与语义 |
 |---|---|---|
@@ -116,11 +184,20 @@ ERROR: Duplicate agent name: example-host. Unable to add agent
 | 解压正文 | 两个 `:` | 分隔计数器与事件。顺序是 `random + global_count + ":" + local_count + ":" + event` |
 | 解压正文 | `event` | 普通事件或 `#!-` 开始的运行期控制载荷 |
 
-校验接收逻辑可返回内部结果 `KS_VALID`（通过）、`KS_CORRUPT`（格式或内容校验失败）、`KS_ENCKEY`（安全消息或密钥错误）及 `KS_RIDS`（重复或旧计数）。这些值不作为遥测回执发送。普通事件由 remoted 交给 Manager 的 Analysis 队列，控制消息另行分派。 [安全消息收发](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/os_crypto/shared/msgs.c#L297-L674) · [Manager 消息处理](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/remoted/secure.c#L760-L938)
+- **内部结果**：校验接收逻辑可返回内部结果 `KS_VALID`（通过）、`KS_CORRUPT`（格式或内容校验失败）、`KS_ENCKEY`（安全消息或密钥错误）及 `KS_RIDS`（重复或旧计数）。
+- **边界**：这些值不作为遥测回执发送。
+- **处理**：普通事件由 remoted 交给 Manager 的 Analysis 队列，控制消息另行分派。
+- **证据**：
+  - [安全消息收发](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/os_crypto/shared/msgs.c#L297-L674)
+  - [Manager 消息处理](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/remoted/secure.c#L760-L938)
 
 ### 通用事件与控制报文
 
-普通标准事件为 `<queue>:<location>:<message>`。第一段为单字节类别，第二段为来源，第三段由对应采集器定义，可包含冒号。官方文档列出的常用类别包括 `1`（本地日志）、`2`（远端 Syslog）、`4`（Manager remoted 到 Analysis 的安全消息包装）、`5`（数据库同步）、`8`（Syscheck）、`9`（Rootcheck）、`f`（Windows 事件）、`p`（SCA）、`d`（系统资产）、`u`（Agent 升级完成）。这些常用类别跨越不同队列方向，不构成 Agent 上报的闭集。 [官方消息格式](https://documentation.wazuh.com/4.14/development/message-format.html)
+- **格式**：普通标准事件为 `<queue>:<location>:<message>`。
+- **字段**：第一段为单字节类别，第二段为来源，第三段由对应采集器定义，可包含冒号。
+- **常用类别**：官方文档列出的常用类别包括 `1`（本地日志）、`2`（远端 Syslog）、`4`（Manager remoted 到 Analysis 的安全消息包装）、`5`（数据库同步）、`8`（Syscheck）、`9`（Rootcheck）、`f`（Windows 事件）、`p`（SCA）、`d`（系统资产）、`u`（Agent 升级完成）。
+- **边界**：这些常用类别跨越不同队列方向，不构成 Agent 上报的闭集。
+- **证据**：[官方消息格式](https://documentation.wazuh.com/4.14/development/message-format.html)
 
 | 消息 | 字段及处理 |
 |---|---|
@@ -130,7 +207,12 @@ ERROR: Duplicate agent name: example-host. Unable to add agent
 | Manager ACK | `#!-agent ack `，用于启动握手和控制层活性。没有逐条遥测接收编号、存储确认或业务回执 |
 | Manager 启动错误 | `HC_ERROR` 控制前缀后跟 JSON，字段 `message` 为 string。Manager 版本拒绝分支构造描述文本，Agent 解析并记录，保持握手未完成 |
 
-[Agent 启动与关闭](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/client-agent/start_agent.c#L328-L422) · [保活构造器](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/client-agent/notify.c#L80-L208) · [默认周期](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/headers/defs.h#L95) · [Manager 控制面处理](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/remoted/manager.c#L350-L510) · [Manager 错误消息](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/remoted/manager.c#L1515-L1536)
+- **证据**：
+  - [Agent 启动与关闭](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/client-agent/start_agent.c#L328-L422)
+  - [保活构造器](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/client-agent/notify.c#L80-L208)
+  - [默认周期](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/headers/defs.h#L95)
+  - [Manager 控制面处理](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/remoted/manager.c#L350-L510)
+  - [Manager 错误消息](https://github.com/wazuh/wazuh/blob/e0707d735cc60b38da2723376a2f0faeffe697bb/src/remoted/manager.c#L1515-L1536)
 
 ```text
 1:/var/log/example.log:application status=healthy

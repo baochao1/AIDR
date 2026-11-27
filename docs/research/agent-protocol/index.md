@@ -6,6 +6,9 @@
 
 | 交付物 | 覆盖范围 |
 |---|---|
+| [六个参考实现](design-comparison.md) | 固定版本来源与采用关系 |
+| [协议与组件复用选型](design-optimization.md) | 认证、插件 IPC 与制品更新的复用路径 |
+| [AIDR 协议和第三方插件数据契约](endpoint-platform-v2.md) | 从认证、管控、心跳、遥测到插件、文件的字段、枚举、报文与错误处理 |
 | [类似产品和项目清单](candidates.md) | AIDR 已有参考、补充候选、首批产品及固定版本 |
 | [Elastic Agent / Fleet](elastic/elastic.md) | 注册与访问凭据、Fleet 控制接口、Elasticsearch Bulk 数据面 |
 | [FleetDM / osquery](fleetdm/fleetdm.md) | 节点注册和认证、日志及查询结果上报、文件分块上传 |
@@ -30,7 +33,7 @@
 
 在对应目录下运行 `python demo.py`;全部断言通过时输出 `PASS`。demo 只复现凭据流转与协议边界，覆盖范围和简化项见各认证过程文档的末尾说明。
 
-首批范围以代码可溯源、Agent 与接收端配对为准。与 AIDR 对照时分别映射认证注册、平台遥测和文件传输。AIDR 插件进程内外的通信另见 [数据契约](../../integration/aidr-data-contract.md)，平台接口基线见 [端管对接规范](../../integration/aidr-endpoint-platform-v1.md)。各产品文档保留其尚未核实的字段、支路和运行时行为。
+首批范围以代码可溯源、Agent 与接收端配对为准。与 AIDR 对照时分别映射认证注册、平台遥测和文件传输。AIDR 插件进程内外的通信另见 [数据契约](../../archive/integration/aidr-data-contract.md)，平台接口基线见 [端管对接规范](../../archive/integration/aidr-endpoint-platform-v1.md)。各产品文档保留其尚未核实的字段、支路和运行时行为。
 
 | 复核对象 | 复核与修订结果 | 运行条件或协议边界 |
 |---|---|---|
@@ -50,7 +53,7 @@
 
 ## 1. 整理类似产品与项目清单
 
-- 从 [现有调研记录](../research.md) 和 [参考材料目录](../../../origin/) 提取当前项目已引用或评估的项目，再补充具有可比性的 EDR、终端管理、遥测采集或其他受管 Agent。
+- 从 [现有调研记录](../../archive/research/research.md) 和 [参考材料目录](../../../origin/) 提取当前项目已引用或评估的项目，再补充具有可比性的 EDR、终端管理、遥测采集或其他受管 Agent。
 - 清单逐项记录产品、组件、类型、与 AIDR 的可比之处、源码或官方协议入口、固定版本或提交，以及可核实的范围。同一产品的 Agent、管理服务和接收服务分别标明，关联到同一产品条目。
 - 说明哪些候选进入后续调研及原因。对仅覆盖插件或进程管理的组件，记录其适用范围。
 

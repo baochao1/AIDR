@@ -39,11 +39,39 @@ sequenceDiagram
 
 ## 逐步过程
 
-1. **本地密钥加载**：Orbit 在进程级注册锁内读取 `<root-dir>/secret-orbit-node-key.txt`。非空且未标记强制重注册时复用；缺失或只含空白时发起 `POST /api/fleet/orbit/enroll`。注册密钥可来自参数、文件、系统密钥库或平台 MDM 交付。
-2. **注册与落盘**：成功响应 200 携带 `orbit_node_key`。客户端先写同目录临时文件、同步并关闭，再替换原文件；Windows 写之前限制 ACL。写入失败时原文件保留，但服务端密钥可能已被替换。
-3. **运行期认证**：Orbit 接口从 JSON `orbit_node_key` 取值，或走请求头认证 `Authorization: Node key <credential>`。服务端用密钥查主机；绑定身份证书的主机同时验证 HTTP 签名。密钥空、找不到主机或身份校验失败返回 401。
-4. **失效与重注册**：第一次已认证调用收到 401 时启动计时；后续 401 距首次至少 45 秒才置强制重注册。成功认证清除计时。强制分支还会删除本地身份证书并请求重启，之后重新注册。
-5. **WebSocket 唤醒**：`GET /api/fleet/orbit/notifications` 用 `Node key` 升级；服务端未启用 WebSocket 时返回 404，鉴权失败返回 401，客户端回退 HTTP 轮询。该升级请求不配置 HTTP 消息签名，要求签名的主机会回退到带签名的轮询。
+### 1. Orbit 读取本地节点密钥
+
+- **执行方**：Orbit，在进程级注册锁内读取 `<root-dir>/secret-orbit-node-key.txt`
+- **复用**：文件非空且未标记强制重注册
+- **注册**：缺失或只含空白时，Orbit 向 Fleet Server 发起 `POST /api/fleet/orbit/enroll`
+- **来源**：注册密钥由部署方提供，可来自参数、文件、系统密钥库或平台 MDM 交付
+
+### 2. Fleet Server 签发、Orbit 落盘
+
+- **响应**：Fleet Server 返回 200，响应体携带 `orbit_node_key`
+- **落盘**：Orbit 写同目录临时文件、同步并关闭，再替换原文件；Windows 写之前先限制 ACL
+- **风险**：写入失败时原文件保留，但服务端密钥可能已被替换
+
+### 3. Orbit 在接口请求中出示节点凭据
+
+- **发起方**：Orbit → Fleet Server
+- **凭据位置**：JSON 字段 `orbit_node_key` 或请求头 `Authorization: Node key <credential>`
+- **处理**：Fleet Server 用密钥查询主机；绑定身份证书的主机还验证 HTTP 消息签名
+- **失败**：密钥为空、找不到主机或身份校验失败时返回 401
+
+### 4. Orbit 处理失效并重注册
+
+- **计时起点**：Orbit 的第一次已认证调用收到 401
+- **阈值**：后续 401 距首次至少 45 秒，Orbit 才置强制重注册标志
+- **清除**：期间认证成功会清除计时
+- **强制分支**：Orbit 删除本地身份证书并请求重启，随后重新注册
+
+### 5. Orbit 请求 WebSocket 唤醒通道
+
+- **发起方**：Orbit → Fleet Server
+- **请求**：`GET /api/fleet/orbit/notifications`，WebSocket 升级，请求头携带 `Node key`
+- **回退**：Fleet Server 未启用 WebSocket 时返回 404，鉴权失败返回 401，Orbit 回退 HTTP 轮询
+- **边界**：升级请求不配置 HTTP 消息签名，要求签名的主机会回退到带签名的轮询
 
 ## 主机身份证书（商业版）
 

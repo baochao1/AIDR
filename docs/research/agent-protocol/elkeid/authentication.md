@@ -1,6 +1,6 @@
 # Elkeid 认证过程
 
-本文从 [接口规格](elkeid.md) 提炼认证过程，配套可运行示例 [demo.py](demo.py)。固定提交 `c906c512`，双向 TLS 与连接生命周期结论以接口规格为准。
+本文从 [接口规格](elkeid.md) 提炼认证过程。固定提交 `c906c512`，双向 TLS 与连接生命周期结论以接口规格为准。
 
 ## 角色与凭据
 
@@ -74,14 +74,4 @@ sequenceDiagram
 | 连接配额超限 | gRPC `UNKNOWN=2`，消息 `out of max connection limit` |
 | 流结束或拨号失败 | 约等 5 秒重开；连续获取连接失败超阈值后传输协程退出 |
 
-## Demo 说明
 
-`demo.py` 用 `cryptography` 在内存中生成临时 CA、服务端证书和客户端证书，启动本地双向 TLS 服务，按上述步骤完成握手并发送首包登记。运行：
-
-```powershell
-python demo.py
-```
-
-脚本验证：受信任客户端完成 mTLS 并登记 `agent_id`、未受信任的客户端证书被握手拒绝、非预期 DNS 名被 Agent 侧拒绝。全部通过输出 `PASS`。
-
-Demo 复现认证边界，不使用真实 gRPC、Kafka 或 AgentCenter 实现，也不验证配置下发与任务分支。

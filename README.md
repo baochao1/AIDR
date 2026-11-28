@@ -1,48 +1,11 @@
-# Supervisor 与 AIDR 插件 Demo
+# AIDR 终端安全代理（Agent）协议设计
 
-演示终端 Agent 动态安装、启动和卸载独立组件，并把组件事件送达管理端。Windows 图形界面以 Agent 和插件为主，配套的本地管理端用于验证下发、状态和数据接收。
+本仓库当前只承载设计文档：[AIDR Agent 与管理端协议](docs/research/agent-protocol/endpoint-platform-v2.md)（只覆盖 Agent ↔ 管理端及部署侧交互）与配套的友商调研。代码实现尚未开始，文档即唯一事实来源。Agent 与插件的本机接入细节由终端实现决定，不在设计文档范围内。
 
 | 读者 | 阅读入口 |
 |---|---|
-| 设计与研发 | [Agent 协议调研索引](docs/research/agent-protocol/index.md) |
+| 设计与研发 | [AIDR Agent 与管理端协议](docs/research/agent-protocol/endpoint-platform-v2.md) |
 | 厂商对比 | [候选清单与固定版本](docs/research/agent-protocol/candidates.md) |
-| 历史交付资料 | [归档文档导航](docs/archive/legacy-index.md) |
+| 调研索引 | [Agent 协议调研索引](docs/research/agent-protocol/index.md) |
 
-当前设计基线以 [Agent 协议调研](docs/research/agent-protocol/index.md) 为准，后续设计基于这些厂商分析展开。上一阶段的架构、集成、演示与验收文档见 [归档](docs/archive/legacy-index.md)。完整目录见 [文档导航](docs/index.md)。
-
-## 构建和回归
-
-需要 Go 1.24.13、Python 3.13 和 PowerShell 7。脚本构建三个 Go 命令及独立 Python 制品，运行 A/B PoC、Go 测试、vet 和远程端到端场景。
-
-```pwsh
-./scripts/verify.ps1
-```
-
-Python 用于 Windows 演示界面、构建 Mock 和运行测试脚本。独立打包的 Python Mock 在终端运行时无需另装 Python。
-
-## 手动运行
-
-Windows 示例。Linux/macOS 把二进制名中的 `.exe` 去掉。
-
-```pwsh
-build/supervisor-demo.exe bootstrap
-# 两个独立终端分别运行
-build/supervisor-demo.exe server
-build/supervisor-demo.exe agent -events
-```
-
-管理员端发布组件，并下发期望状态。
-
-```pwsh
-build/supervisor-demo.exe sign -id mock-a -version 1.0.0 -artifact mock-a-1 -ipc native -file build/mock-go.exe -out build/mock-a-1.json
-build/supervisor-demo.exe publish -file build/mock-a-1.json
-'{"revision":1,"components":[{"id":"mock-a","version":"1.0.0","desired_state":"running","artifact_id":"mock-a-1"}]}' | Set-Content -Encoding utf8NoBOM build/policy.json
-build/supervisor-demo.exe policy -file build/policy.json
-build/supervisor-demo.exe status
-```
-
-停止组件时递增 revision，将 `desired_state` 改成 `stopped`。启动时改回 `running`。卸载使用新 revision 和 `absent`，业务数据保留在 `.demo/agent/data`。升级时签名并发布新版本制品，通过新 revision 指定该版本。Mock 的 `3.0.0` 故意返回不健康，便于验证恢复旧版本。
-
-`bootstrap` 创建一次性本地实验 CA，以及 server、admin、agent、signer 四套目录。管理端和终端运行时分别只需要自己的身份目录和 Supervisor Demo 二进制。示例使用回环地址、固定终端身份和短期证书。跨机器使用前需为服务器地址配置匹配的证书及相应网络监听，并按角色分别分发凭据。请保管本地私钥，整个 `.demo/` 目录已忽略。
-
-
+历史阶段的架构、集成、演示、验收文档与按旧方案编写的演示代码均已删除；完整目录见 [文档导航](docs/index.md)。遇到指向已删除内容（`docs/archive/`、`internal/`、`cmd/`、`plugins/`、`api/proto`、旧演示脚本等）的引用，一律以 endpoint-platform-v2.md 为准。

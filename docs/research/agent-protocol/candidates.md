@@ -2,7 +2,6 @@
 
 候选来源：
 
-- [固定源码调研](../../archive/research/research.md)
 - [Supervisor 实施资料](../../../origin/supervisor-demo-implementation.md)
 - [开源 EDR 选型报告](../../../origin/开源EDR框架选型评估报告-终版.html)
 - [插件 SDK 集成设计](../../../origin/统一客户端第三方插件SDK集成设计方案.html)

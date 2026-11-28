@@ -1,6 +1,6 @@
 # wazuh-agent 实验实现认证过程
 
-本文从 [接口规格](wazuh-agent.md) 提炼认证过程，配套可运行示例 [demo.py](demo.py)。固定提交 `ca21132`，该实现是独立实验项目，不兼容正式 Wazuh Manager；正式 4.x 链路见 `../wazuh/authentication.md`。
+本文从 [接口规格](wazuh-agent.md) 提炼认证过程。固定提交 `ca21132`，该实现是独立实验项目，不兼容正式 Wazuh Manager；正式 4.x 链路见 `../wazuh/authentication.md`。
 
 ## 角色与凭据
 
@@ -82,15 +82,3 @@ sequenceDiagram
 | 运行期认证失败 | 401/403，可带 `message` | 获取令牌失败，重新尝试认证 |
 | 上传凭据过期/失效 | 401/403 | 保留待发事件，刷新令牌后重发 |
 | 上传超时或 5xx | 无有效成功响应 | 保留队列，按循环规则退避 |
-
-## Demo 说明
-
-`demo.py` 在本机启动 mock 管理 API 与通信 API，走通管理登录、注册、JWT 换取、事件批次上传与 401 刷新。运行：
-
-```powershell
-python demo.py
-```
-
-脚本验证：登录取得管理令牌、注册返回 201 后本地保存、JWT `exp` 可解析、NDJSON 事件批次格式、401 后重新认证并保留队列。全部通过输出 `PASS`。
-
-Demo 使用占位 JWT 与本地 mock，不实现真实服务端签发、不解密生产载荷，也不验证持久化实现。

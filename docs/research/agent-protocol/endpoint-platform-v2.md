@@ -1,11 +1,10 @@
-# AIDR Agent 协议和第三方插件数据契约
+# AIDR Agent 与管理端协议
 
-受管插件首次上线顺序为 **Agent 远程认证 → 心跳与接收策略 → 下载并校验制品 → 启动插件、建立本机连接并探活 → 接收插件事件 → Agent 向平台上报遥测和上传附件**。第 1–3 节由 Agent、管理端及部署侧负责，第三方插件按第 4–5 节实现本机对接，需要交付附件时再实现第 7 节的附件声明。本文的“现有”指仓库 Demo 已有接口，“拟定”指本稿给出的正式联调约定。正式模式应由双方显式启用。各表的来源列注明 AIDR 定义出处和可比产品的线上字段。「Elkeid 对应」列以固定提交 `c906c512` 为准，🟩 表示已有对应字段或机制，⬜ 表示在对应源码或调研范围内未核实。写有“对照”的项表示行为相近，线上名称、取值或作用域按表内说明。产品版本及上游源码见各节末尾的来源链接。
+Agent 首次上线顺序为 **远程认证 → 心跳与接收策略 → 下载并校验制品 → 上报遥测与上传附件**。本稿只覆盖 Agent 与管理端及部署侧的交互；Agent 与插件的本机接入细节由 AIDR 终端实现决定，不在本稿范围。各表的来源列注明 AIDR 定义出处和可比产品的线上字段。「Elkeid 对应」列以固定提交 `c906c512` 为准，🟩 表示已有对应字段或机制，⬜ 表示在对应源码或调研范围内未核实。写有“对照”的项表示行为相近，线上名称、取值或作用域按表内说明。产品版本及上游源码见各节末尾的来源链接。
 
 | 认证发生在哪一步 | 谁发起、谁验证 | 使用的凭据 |
 |---|---|---|
 | 第 1.1 节，Agent 首次接入或重连管理端 | Agent 主动连接管理端，双方在 TLS 握手中验证证书 | 部署侧提供的客户端证书与管理端证书 |
-| 第 4 节，Agent 启动插件后建立本机连接 | Agent 验证插件实例的 TLS 证书，插件校验 Agent RPC 的实例 token | Agent 启动插件时分配的实例证书和 token |
 
 ## 1. AIDR Agent → 管理端认证与上线
 
@@ -160,7 +159,7 @@ if err != nil {
 }
 
 // 5. 之后同一个循环里继续收发：
-//    - stream.Send(...) 发心跳批次、事件（第 2 节 Heartbeat、第 6 节 EventBatch）
+//    - stream.Send(...) 发心跳批次、事件（第 2 节 Heartbeat、第 4 节 EventBatch）
 //    - stream.Recv()   收管理端下行（第 2 节 HeartbeatReply、PolicyUpdate）
 //    消息仍是普通 Protobuf，TLS 加密传输由 Go 标准库在底层完成。
 ~~~
@@ -194,7 +193,7 @@ if err == nil {
 | 返回缓存的 `Idle` 连接对象 | `GetConnection` 此时可以先返回对象。后续 RPC 触发底层建连时，gRPC 使用对象已有的 TLS 凭据，证书验证在建连时发生 |
 | 断线后重新建连 | 重拨使用同一套 TLS 配置。Agent 再打开 Transfer 并发送首包，AgentCenter 重新登记在线连接 |
 
-证书认证发生在新建底层连接时。业务消息复用已认证的连接，无需逐条附证书、JWT 或 Cookie。前置的服务发现 HTTP 请求和第 4 节插件本机连接使用各自的连接配置。
+证书认证发生在新建底层连接时。业务消息复用已认证的连接，无需逐条附证书、JWT 或 Cookie。前置的服务发现 HTTP 请求使用各自的连接配置。
 
 #### 服务端证书配在监听器
 
@@ -242,14 +241,18 @@ stream, err := c.cc.NewStream(ctx, &_Transfer_serviceDesc.Streams[0], "/grpc.Tra
 
 Elkeid **没有专门的首包或注册消息**：首包就是 Agent 开流后第一个非空批次，之后每个批次结构完全相同。`agent/transport/transfer.go` 的发送策略为：`handleSend` 用 100 毫秒定时器轮询 `buffer.ReadEncodedRecords()`，缓存为空不发；取到记录后将记录列表、本地 ID（`agent.ID`）、私网和公网 IPv4/IPv6（`host.*` 原子变量）、主机名（`host.Name`）、Agent 版本和产品名组装成 `PackagedData` 发送。发送失败仅记日志，记录对象回收进缓冲池，该批数据不重排队。连接级重试在外层 `startTransfer`：取不到连接等 5 秒重试，超过 5 次退出；流中断后等 5 秒重开。 [Agent 批次构造][elkeid-send] · [消息定义][elkeid-proto] · [服务端首包处理][elkeid-transfer]
 
-`PackagedData`（proto 字段号：`records` 1、`agent_id` 2、`intranet_ipv4` 3、`extranet_ipv4` 4、`intranet_ipv6` 5、`extranet_ipv6` 6、`hostname` 7、`version` 8、`product` 9）。其中每条记录是 `EncodedRecord{data_type int32 #1, timestamp int64 #2, data bytes #3}`，`data` 是编码（传输层配 snappy 压缩）后的 `Payload{fields map<string,string> #1}` 字节。下面是字段名采用 Proto 定义的可读示例。示例批次里的 `records[0].data` 以 Base64 展示 Protobuf 字节，解码后是 `Payload.fields={"state":"running"}`。实际心跳按生产端填入其他可用字段。
+`PackagedData`（proto 字段号：`records` 1、`agent_id` 2、`intranet_ipv4` 3、`extranet_ipv4` 4、`intranet_ipv6` 5、`extranet_ipv6` 6、`hostname` 7、`version` 8、`product` 9）。其中每条记录是 `EncodedRecord{data_type int32 #1, timestamp int64 #2, data bytes #3}`，`data` 是编码（传输层配 snappy 压缩）后的 `Payload{fields map<string,string> #1}` 字节。下面是字段名采用 Proto 定义的可读示例。示例批次里的 `records[0].data` 以 Base64 展示 Protobuf 字节，解码后是 `Payload.fields={ "state": "running" }`。实际心跳按生产端填入其他可用字段。
 
 ~~~json
 {
   "records": [
-    {"data_type": 1000, "timestamp": "1795744800", "data": "ChAKBXN0YXRlEgdydW5uaW5n"}
+    {
+      "data_type": 1000,
+      "timestamp": "1795744800",
+      "data": "ChAKBXN0YXRlEgdydW5uaW5n"
+    }
   ],
-  "agent_id": "demo-agent",
+  "agent_id": "agent-001",
   "intranet_ipv4": ["192.0.2.2"],
   "extranet_ipv4": [],
   "intranet_ipv6": [],
@@ -341,7 +344,14 @@ func (h *TransferHandler) Transfer(stream pb.Transfer_TransferServer) error {
 后续管理端推配置时，通过 `agent_id` 找到这条连接，把命令放进它的 `CommandChan`，由 `sendData` 调用 `stream.Send()` 发给 Agent。下面示例是 Agent 解码后看到的 `Command`，只展示插件名和版本，取值为示例。完整配置还可包含包类型、摘要、签名、下载 URL 等字段。Agent 收到后按名称索引配置并进入同步处理。服务端内部等待的是 `stream.Send()` 的结果，插件是否实际应用成功需另看状态。 [连接池发送][elkeid-pool] · [Command 字段](elkeid/elkeid.md#字段字典) · [Agent 接收][elkeid-send]
 
 ~~~json
-{"configs":[{"name":"example-plugin","version":"1.2.3"}]}
+{
+  "configs": [
+    {
+      "name": "example-plugin",
+      "version": "1.2.3"
+    }
+  ]
+}
 ~~~
 
 | 场景 | Elkeid 行为 |
@@ -363,11 +373,11 @@ func (h *TransferHandler) Transfer(stream pb.Transfer_TransferServer) error {
 
 ## 2. Agent ↔ 管理端心跳与管控
 
-**业务契约草案。** 第 1 节的 TLS 和 Transfer 首包完成认证及上线。下表记录 AIDR 管控需要传递的业务字段，如何映射到 Elkeid `PackagedData.records` 和 `Command` 见本节 Proto 草案。表中及下文的 JSON 示例是消息内容的可读表示；**正式线上的封装以下面的 Proto 草案为准**（v1 `Frame{kind, body Struct, data}` 仅作为 Demo 过渡）。整数必须在 0–2^53−1 范围内。网络错误、UNAVAILABLE、RESOURCE_EXHAUSTED 采用 1–60 秒带抖动的指数退避。
+**业务契约。** 第 1 节的 TLS 和 Transfer 首包完成认证及上线。下表记录 AIDR 管控需要传递的业务字段，如何映射到 Elkeid `PackagedData.records` 和 `Command` 见本节 Proto 草案。表中及下文的 JSON 示例是消息内容的可读表示；**正式线上的封装以下面的 Proto 草案为准**。整数必须在 0–2^53−1 范围内。网络错误、UNAVAILABLE、RESOURCE_EXHAUSTED 采用 1–60 秒带抖动的指数退避。
 
-#### 拟定数据结构（Proto 草案，参照 Elkeid Transfer 实现）
+#### 数据结构（Proto 草案，参照 Elkeid Transfer 实现）
 
-照 Elkeid `agent/proto/grpc.proto` 的实现模式设计：**单条双向 `Transfer` 流承载心跳与管控**，上行帧携带设备身份字段（与 Elkeid `PackagedData` 逐字段对应），下行帧承载指令（对应 Elkeid `Command`）；业务负载不再用 `data_type` 判别，改用类型化消息和 `oneof` 分派。遥测批次按第 6 节约定走独立的 `Telemetry` 流（对应 Elkeid `Transfer` + `FileExt` 的多 service 布局）。
+照 Elkeid `agent/proto/grpc.proto` 的实现模式设计：**单条双向 `Transfer` 流承载心跳与管控**，上行帧携带设备身份字段（与 Elkeid `PackagedData` 逐字段对应），下行帧承载指令（对应 Elkeid `Command`）；业务负载不再用 `data_type` 判别，改用类型化消息和 `oneof` 分派。遥测批次按第 4 节约定走独立的 `Telemetry` 流（对应 Elkeid `Transfer` + `FileExt` 的多 service 布局）。
 
 ~~~proto
 syntax = "proto3";
@@ -443,7 +453,7 @@ message Heartbeat {
 message ComponentState {
   string component_id = 1;             // [Elkeid 无] Elkeid 用插件名（Config.name）定位
   string state = 2;                    // [Elkeid 有对照] 上游有状态枚举，取值集合独立；
-                                       // AIDR 取 running / stopped / absent / failed
+                                       // AIDR 取 running / stopped / absent / degraded / failed
   string version = 3;                  // [Elkeid 无] 可选：实际运行或已安装版本
   string error_code = 4;               // [Elkeid 无] failed 时必填
 }
@@ -494,18 +504,18 @@ message EventBatch {
 
 message TelemetryEvent {
   string type = 1;                     // [Elkeid 有对照] EncodedRecord.data_type #1 判别
-                                       // 记录类型（int32）；AIDR 用字符串业务枚举
-  int32 schema_version = 2;            // [Elkeid 无] 当前固定 1
-  string source_event_id = 3;          // [Elkeid 无] 插件源事件 ID
+                                       // 记录类型（int32）；AIDR 用插件 AIDREvent.event_type
+  int32 schema_version = 2;            // [Elkeid 无] 当前固定 1，对应 aidr.plugin.v1
+  string source_event_id = 3;          // [Elkeid 无] 插件源事件 ID = AIDREvent.event_id
   string observed_at = 4;              // [Elkeid 有对照] EncodedRecord.timestamp #2 为
-                                       // Unix 秒；AIDR 用 UTC RFC3339
-  string asset_id = 5;                 // [Elkeid 无] 日志及附件声明省略
+                                       // Unix 秒；AIDR 用插件 timestamp（Unix 毫秒）转 UTC RFC3339
+  string asset_id = 5;                 // [Elkeid 无] 对应 AIDREvent.asset_id / Asset.asset_id
   string data_json = 6;                // [Elkeid 有对照] EncodedRecord.data #3 编码后的
-                                       // Payload{fields map<string,string> #1}；
-                                       // AIDR 用按 type 校验的 JSON object 文本
+                                       // Payload{fields map<string,string> #1}；AIDR 用 JSON object 文本，
+                                       // 字段名与类型沿用 AIDREvent 未提升到信封的字段
   // Agent 附加字段（均 [Elkeid 无]，平台按租户+Agent+event_id 去重）
-  string event_id = 7;                 // 本地落盘 UUID
-  string component_id = 8;
+  string event_id = 7;                 // 本地落盘 UUID，与 source_event_id 不同
+  string component_id = 8;             // 插件 plugin_id；插件留空时由 Agent 补齐
   string instance_id = 9;
   int64 sequence = 10;                 // 本地持久化序号，从 1
   string timestamp = 11;               // 接收时间，UTC RFC3339（Elkeid 无接收时间字段）
@@ -526,26 +536,60 @@ message EventResult {
 
 | kind / 方向 | body 字段与语义 | 来源与产品字段对照 | Elkeid 对应 |
 |---|---|---|---|
-| Heartbeat → | `boot_id` UUID，每次 Agent 进程启动生成，`seq` 整数，同一次启动从 1 递增。 `timestamp` UTC，`received_revision`、`applied_revision` 为已保存、已应用的策略版本，初始 0，`components` 为组件状态数组 | AIDR v1。Elkeid 借 `data_type=1000` 心跳记录更新在线信息，Wazuh 4.14.0 使用 keepalive，Elastic Check-in 接收 `components`。 | 🟩 有 `data_type=1000` 心跳，以 Unix 秒记录时间。Agent 及插件状态另外分派，未见本行 `boot_id`、`seq` 和策略版本。 [心跳](elkeid/elkeid.md#字段字典) |
-| HeartbeatReply ← | `ack_seq` 整数，对应已接收心跳。 `server_time`、`heartbeat_interval_s`、`offline_after_s`、`desired_revision` 分别表示服务端时间、下次心跳间隔（秒）、离线阈值（秒）和目标策略版本。可选 `policy`，策略正文见下 | AIDR v1。Elastic Check-in 通过 `ack_token` 对账，响应可附带 `actions`；AIDR 用 `ack_seq` 和 `policy`。 | ⬜ 未见 `ack_seq` 或逐心跳确认。首个 Agent 心跳可触发配置下发。 [心跳处理](elkeid/elkeid.md#认证身份和连接生命周期) |
-| PolicyUpdate ← | `revision` 正整数，发布版本。 `components` 组件目标数组，每项 `component_id` string、`desired_state` 枚举，非 absent 时必填 `artifact_id` string（获授权制品），absent 时省略 | AIDR v1 生命周期字段。Elastic `actions[].data.policy.revision` 同样使用整数版本。Elkeid `Config` 有插件版本和下载信息。 | 🟩 有 `Command.configs` 和 `Config.name/version`。未见本行整数 revision 或三值 desired_state。 [Proto][elkeid-proto] |
-| PolicyAck → | `revision` 正整数。 `status` 枚举。 `error_code` string，仅 rejected 或 failed 必填，取 `INVALID_POLICY` 或 `COMPONENT_APPLY_FAILED` | AIDR 拟定精简回执。Elastic `events[].action_id/error` 上报动作结果，Elkeid `Task.token` 用于任务对账。 | 🟩 有按 `Task.token` 对账的任务模型。未见本行 PolicyAck 和四态语义。 [Proto][elkeid-proto] |
+| Heartbeat → | `boot_id` UUID，每次 Agent 进程启动生成，`seq` 整数，同一次启动从 1 递增。 `timestamp` UTC，`received_revision`、`applied_revision` 为已保存、已应用的策略版本，初始 0，`components` 为组件状态数组 | AIDR。Elkeid 借 `data_type=1000` 心跳记录更新在线信息，Wazuh 4.14.0 使用 keepalive，Elastic Check-in 接收 `components`。 | 🟩 有 `data_type=1000` 心跳，以 Unix 秒记录时间。Agent 及插件状态另外分派，未见本行 `boot_id`、`seq` 和策略版本。 [心跳](elkeid/elkeid.md#字段字典) |
+| HeartbeatReply ← | `ack_seq` 整数，对应已接收心跳。 `server_time`、`heartbeat_interval_s`、`offline_after_s`、`desired_revision` 分别表示服务端时间、下次心跳间隔（秒）、离线阈值（秒）和目标策略版本。可选 `policy`，策略正文见下 | AIDR。Elastic Check-in 通过 `ack_token` 对账，响应可附带 `actions`；AIDR 用 `ack_seq` 和 `policy`。 | ⬜ 未见 `ack_seq` 或逐心跳确认。首个 Agent 心跳可触发配置下发。 [心跳处理](elkeid/elkeid.md#认证身份和连接生命周期) |
+| PolicyUpdate ← | `revision` 正整数，发布版本。 `components` 组件目标数组，每项 `component_id` string、`desired_state` 枚举，非 absent 时必填 `artifact_id` string（获授权制品），absent 时省略 | AIDR 生命周期字段。Elastic `actions[].data.policy.revision` 同样使用整数版本。Elkeid `Config` 有插件版本和下载信息。 | 🟩 有 `Command.configs` 和 `Config.name/version`。未见本行整数 revision 或三值 desired_state。 [Proto][elkeid-proto] |
+| PolicyAck → | `revision` 正整数。 `status` 枚举。 `error_code` string，仅 rejected 或 failed 必填，取 `INVALID_POLICY` 或 `COMPONENT_APPLY_FAILED` | AIDR 精简回执。Elastic `events[].action_id/error` 上报动作结果，Elkeid `Task.token` 用于任务对账。 | 🟩 有按 `Task.token` 对账的任务模型。未见本行 PolicyAck 和四态语义。 [Proto][elkeid-proto] |
 
-组件状态数组每项包含 `component_id` string、`state` string、可选 `version` string（实际运行或已安装版本）和 `error_code` string（failed 时必填）。首轮只下发生命周期目标，任意命令和插件热配置需独立协议。
+组件状态数组每项包含 `component_id` string、`state` string、可选 `version` string（实际运行或已安装版本）和 `error_code` string（failed 时必填）。`component_id` 对应插件 `GetStatusResponse.plugin_id`，`version` 对应 `GetStatusResponse.version`。插件运行时状态按如下方式写入 `state`：插件 `ready` → `running`，`busy` → `running`，`degraded` → `degraded`，插件异常或 `plugin.error` → `failed`；插件 `code` 映射为本稿 `error_code`（`ERR_CHECKSUM` → `INVALID_POLICY`，其余不可重试失败 → `COMPONENT_APPLY_FAILED`）；`ERR_BUSY` 由 Agent 按插件约定退避重试，不写 `failed`。插件 `plugin.heartbeat` 的 `cpu_percent` / `mem_bytes` / `queue_size` 等统计不进 `ComponentState`，按第 4 节遥测原样上报。首轮只下发生命周期目标，任意命令和插件热配置需独立协议。
 
 | 枚举 | 值与业务语义 | 来源与产品字段对照 | Elkeid 对应 |
 |---|---|---|---|
-| desired_state | `running` 安装并启动，`stopped` 安装但停止，`absent` 卸载 | AIDR v1 生命周期目标。参考产品未验证同一组三值。 | ⬜ 未见相同三值。Elkeid 使用 `Command.configs` 下发组件配置。 [Proto][elkeid-proto] |
-| state | `running` 就绪，`stopped` 已安装且停止，`absent` 未安装，`failed` 安装、启动、停止或卸载未达到目标 | AIDR 本稿的精简状态；Elastic Check-in `status` 为 `starting/online/degraded/error`，业务含义不同。 | 🟩 有状态枚举，AIDR 取值另行定义。 [Elkeid 心跳与状态](elkeid/elkeid.md#字段字典) |
+| desired_state | `running` 安装并启动，`stopped` 安装但停止，`absent` 卸载 | AIDR 生命周期目标。参考产品未验证同一组三值。 | ⬜ 未见相同三值。Elkeid 使用 `Command.configs` 下发组件配置。 [Proto][elkeid-proto] |
+| state | `running` 就绪，`stopped` 已安装且停止，`absent` 未安装，`degraded` 在运行但能力降级，`failed` 安装、启动、停止或卸载未达到目标 | AIDR 本稿的精简状态；`degraded` 对应插件 `GetStatusResponse.status` / `plugin.status` 的 `degraded`。Elastic Check-in `status` 为 `starting/online/degraded/error`，业务含义不同。 | 🟩 有状态枚举，AIDR 取值另行定义。 [Elkeid 心跳与状态](elkeid/elkeid.md#字段字典) |
 | PolicyAck.status | `received` 已持久保存，待执行。 `applied` 所有目标已达到。 `rejected` 校验失败，从未接收该版本。 `failed` 已接收但应用失败，具体组件状态随心跳上报 | AIDR 本稿规定接收、应用与失败分支。Elastic 有独立 ACK 入口，但没有本表四值。 | ⬜ 未见该四态策略回执。 [Proto][elkeid-proto] |
 
-设备身份取自第 1 节 Transfer 首包。以下是拟定的 AIDR 心跳业务请求和回执数据示例。
+设备身份取自第 1 节 Transfer 首包。以下是 AIDR 心跳业务请求和回执数据示例。
 
 ~~~json
-[{"kind":"Heartbeat","body":{"boot_id":"00000000-0000-4000-8000-000000000001","seq":1,"timestamp":"2026-11-27T02:00:00Z","received_revision":0,"applied_revision":0,"components":[]}},{"kind":"HeartbeatReply","body":{"ack_seq":1,"server_time":"2026-11-27T02:00:00Z","heartbeat_interval_s":30,"offline_after_s":90,"desired_revision":4,"policy":{"revision":4,"components":[{"component_id":"aidr-vendor","desired_state":"running","artifact_id":"aidr-vendor-1.4.0"}]}}}]
+[
+  {
+    "kind": "Heartbeat",
+    "body": {
+      "boot_id": "00000000-0000-4000-8000-000000000001",
+      "seq": 1,
+      "timestamp": "2026-11-27T02:00:00Z",
+      "received_revision": 0,
+      "applied_revision": 0,
+      "components": []
+    }
+  },
+  {
+    "kind": "HeartbeatReply",
+    "body": {
+      "ack_seq": 1,
+      "server_time": "2026-11-27T02:00:00Z",
+      "heartbeat_interval_s": 30,
+      "offline_after_s": 90,
+      "desired_revision": 4,
+      "policy": {
+        "revision": 4,
+        "components": [
+          {
+            "component_id": "aidr-vendor",
+            "desired_state": "running",
+            "artifact_id": "aidr-vendor-1.4.0"
+          }
+        ]
+      }
+    }
+  }
+]
 ~~~
 
-Agent 保存后回 `{"revision":4,"status":"received"}`，完成制品校验和插件探活后回 `{"revision":4,"status":"applied"}`。后续心跳的 applied_revision 为 4。
+Agent 保存后回 `{ "revision": 4, "status": "received" }`，完成制品校验和插件探活后回 `{ "revision": 4, "status": "applied" }`。后续心跳的 applied_revision 为 4。
+
+`PolicyAck` 的来源是插件侧的 `policy.ack` 事件与 `UpdatePolicyResponse.accepted`：Agent 下发 `UpdatePolicyRequest.version` 时使用 `Policy.revision` 的十进制字符串，插件回送 `policy_version` 后 Agent 转回整数填入 `PolicyAck.revision`。`policy_result=applied` → `applied`；`rejected` 或 `accepted=false` → `rejected` + `INVALID_POLICY`；`partial` → `failed` + `COMPONENT_APPLY_FAILED`。插件事件中的原始 `code` / `message` 保留在第 4 节遥测 `data` 中供定位。插件 `action.receipt` 不占用本节的 `PolicyAck`，按第 4 节遥测上报。
 
 | 异常 | 处理 |
 |---|---|
@@ -555,34 +599,32 @@ Agent 保存后回 `{"revision":4,"status":"received"}`，完成制品校验和�
 | 超过 offline_after_s 无新心跳 | 平台标为离线。Agent 重连后发送新心跳并重报实际组件状态 |
 | 连接首包读取失败 | 按第 1 节的 Elkeid Transfer 行为处理 |
 
-**来源**：[AIDR v1 心跳与策略](../../archive/integration/aidr-endpoint-platform-v1.md#2-管控面和心跳) · [Elastic Fleet Check-in / ACK](elastic/elastic.md) · [Elkeid 心跳和指令](elkeid/elkeid.md) · [Wazuh 4.14.0 启动与 keepalive](wazuh/wazuh.md) · [实验 wazuh-agent 命令](wazuh-agent/wazuh-agent.md)。本节采用 AIDR 帧名；PolicyAck 和组件字段为精简联调口径，参考 Fleet 的控制回执与 Elkeid 的长流。
+**来源**：[Elastic Fleet Check-in / ACK](elastic/elastic.md) · [Elkeid 心跳和指令](elkeid/elkeid.md) · [Wazuh 4.14.0 启动与 keepalive](wazuh/wazuh.md) · [实验 wazuh-agent 命令](wazuh-agent/wazuh-agent.md)。本节采用 AIDR 帧名；PolicyAck 和组件字段为精简联调口径，参考 Fleet 的控制回执与 Elkeid 的长流。
 
 ## 3. Agent 下载与校验插件制品
 
-**拟定。** Agent 从已授权策略取得 artifact_id，主动访问制品服务。复用签名更新组件的选型参考 Fleet Orbit 使用的 TUF。若部署采用 TUF，直接交由其客户端处理签名元数据、过期、版本回滚和目标摘要。本节列出 AIDR 现有 v1 下载模型的联调接口，供 TUF 集成评估前追踪字段。下载与第 7 节上传的类型化消息定义见本节末尾的 Proto 草案；冻结时与第 2 节的 Transfer/Telemetry 合入同一个 proto 文件。
+Agent 从已授权策略取得 artifact_id，主动访问制品服务。复用签名更新组件的选型参考 Fleet Orbit 使用的 TUF。若部署采用 TUF，直接交由其客户端处理签名元数据、过期、版本回滚和目标摘要。本节定义 AIDR 自有的下载接口，供 TUF 集成评估前使用。下载与第 5 节上传的类型化消息定义见本节末尾的 Proto 草案；冻结时与第 2 节的 Transfer/Telemetry 合入同一个 proto 文件。
 
-沿用 `/aidr.endpoint.v1.Artifact/Download`，一元请求、服务端流响应。客户端发 `ArtifactRequest`，服务端先发一个 `ArtifactHeader`，再按偏移升序发送 `ArtifactChunk`。
+制品下载走 `/aidr.endpoint.v1.Artifact/Download`，一元请求、服务端流响应。客户端发 `ArtifactRequest`，服务端先发一个 `ArtifactHeader`，再按偏移升序发送 `ArtifactChunk`。
 
 | 消息字段 | 类型与校验 | 来源与产品字段对照 | Elkeid 对应 |
 |---|---|---|---|
-| ArtifactRequest.body.artifact_id | string，策略引用的不可变制品 ID | AIDR v1 制品下载契约。Orbit 通过 TUF 校验和获取更新目标。 | ⬜ 未见该 RPC 字段。Elkeid 通过 `Config.download_urls` 提供下载地址。 [Proto][elkeid-proto] |
-| ArtifactHeader.body.descriptor.artifact_id | string，必须匹配请求 | AIDR v1 制品下载契约。Orbit 通过 TUF 校验和获取更新目标。 | ⬜ 固定版下载配置未核实对应字段。 [Proto][elkeid-proto] |
+| ArtifactRequest.body.artifact_id | string，策略引用的不可变制品 ID | AIDR 制品下载契约。Orbit 通过 TUF 校验和获取更新目标。 | ⬜ 未见该 RPC 字段。Elkeid 通过 `Config.download_urls` 提供下载地址。 [Proto][elkeid-proto] |
+| ArtifactHeader.body.descriptor.artifact_id | string，必须匹配请求 | AIDR 制品下载契约。Orbit 通过 TUF 校验和获取更新目标。 | ⬜ 固定版下载配置未核实对应字段。 [Proto][elkeid-proto] |
 | descriptor.manifest.id / version | string，目标组件 ID 与制品版本 | Elkeid `Config.name` / `Config.version` 对应插件名与版本；AIDR 在签名 manifest 中使用 `id` / `version`。 | 🟩 `Config.name` / `Config.version` 对应目标名和版本。 [Proto][elkeid-proto] |
-| descriptor.manifest.os / arch | string，首轮 windows / amd64 | AIDR v1 制品下载契约。Orbit 通过 TUF 校验和获取更新目标。 | ⬜ 固定版下载配置未核实对应字段。 [Proto][elkeid-proto] |
-| descriptor.manifest.entrypoint | string，ZIP 根目录下的可执行文件相对路径 | AIDR v1 制品下载契约。Orbit 通过 TUF 校验和获取更新目标。 | ⬜ 固定版下载配置未核实对应字段。 [Proto][elkeid-proto] |
-| descriptor.manifest.runtime | string，`process` 表示由 Agent 管理的独立进程 | AIDR v1 制品下载契约。Orbit 通过 TUF 校验和获取更新目标。 | ⬜ 固定版下载配置未核实对应字段。 [Proto][elkeid-proto] |
-| descriptor.manifest.protocol_version | 整数，`1` 为 Demo，`2` 为正式 JSON ACK；未知值拒绝安装 | AIDR v1 制品下载契约。Orbit 通过 TUF 校验和获取更新目标。 | ⬜ 固定版下载配置未核实对应字段。 [Proto][elkeid-proto] |
-| descriptor.manifest.ipc_transport | 可选 string，`native` 使用本机原生 IPC，`tcp` 使用 TLS 回环 TCP；省略时使用 Agent 默认值 | AIDR v1 制品下载契约。Orbit 通过 TUF 校验和获取更新目标。 | ⬜ 固定版下载配置未核实对应字段。 [Proto][elkeid-proto] |
+| descriptor.manifest.os / arch | string，首轮 windows / amd64 | AIDR 制品下载契约。Orbit 通过 TUF 校验和获取更新目标。 | ⬜ 固定版下载配置未核实对应字段。 [Proto][elkeid-proto] |
+| descriptor.manifest.entrypoint | string，ZIP 根目录下的可执行文件相对路径 | AIDR 制品下载契约。Orbit 通过 TUF 校验和获取更新目标。 | ⬜ 固定版下载配置未核实对应字段。 [Proto][elkeid-proto] |
+| descriptor.manifest.runtime | string，`process` 表示由 Agent 管理的独立进程 | AIDR 制品下载契约。Orbit 通过 TUF 校验和获取更新目标。 | ⬜ 固定版下载配置未核实对应字段。 [Proto][elkeid-proto] |
 | descriptor.sha256 / size / key_id | string、非负整数、string。分别是 ZIP 摘要、字节数及可信发布公钥 ID | Elkeid `Config.sha256` 校验包内容；Fleet Orbit TUF 校验目标摘要和大小。AIDR `key_id` 定位发布公钥。 | 🟩 有 `Config.sha256`。未见同组 `size` 和 `key_id`。 [Proto][elkeid-proto] |
-| ArtifactHeader.body.signature | string，Ed25519 签名的 Base64，签名输入使用归档 v1 的 Descriptor 序列化 | AIDR v1 使用 Ed25519 描述签名。Fleet Orbit 使用 TUF 签名元数据，与 AIDR 签名输入不同。 | 🟩 有 `Config.signature` 字段。该字段存在，未据此确认 AIDR 的 Ed25519 签名输入兼容。 [Proto][elkeid-proto] |
-| ArtifactChunk.body.offset | 非负整数，从 0 开始，必须等于已接收字节数 | AIDR v1 制品下载契约。Orbit 通过 TUF 校验和获取更新目标。 | ⬜ 固定版下载配置未核实对应字段。 [Proto][elkeid-proto] |
-| ArtifactChunk.data | Protobuf bytes，原始 ZIP 字节，每帧最多 1 MiB | AIDR v1 制品下载契约。Orbit 通过 TUF 校验和获取更新目标。 | ⬜ 固定版下载配置未核实对应字段。 [Proto][elkeid-proto] |
+| ArtifactHeader.body.signature | string，Ed25519 签名的 Base64，签名输入为 Descriptor 的归一化序列化 | AIDR 使用 Ed25519 描述签名。Fleet Orbit 使用 TUF 签名元数据，与 AIDR 签名输入不同。 | 🟩 有 `Config.signature` 字段。该字段存在，未据此确认 AIDR 的 Ed25519 签名输入兼容。 [Proto][elkeid-proto] |
+| ArtifactChunk.body.offset | 非负整数，从 0 开始，必须等于已接收字节数 | AIDR 制品下载契约。Orbit 通过 TUF 校验和获取更新目标。 | ⬜ 固定版下载配置未核实对应字段。 [Proto][elkeid-proto] |
+| ArtifactChunk.data | Protobuf bytes，原始 ZIP 字节，每帧最多 1 MiB | AIDR 制品下载契约。Orbit 通过 TUF 校验和获取更新目标。 | ⬜ 固定版下载配置未核实对应字段。 [Proto][elkeid-proto] |
 
-首轮制品目标为 `os=windows`、`arch=amd64`。例如策略指定 aidr-vendor-1.4.0，Agent 下载并校验签名元数据、长度及摘要，再安装到版本独立目录，按第 4 节启动并探活，确认目标状态后回 applied。失败时返回策略 failed 以及组件 error_code。网络中断时退避重下。制品不存在或当前身份不可见时返回 NOT_FOUND，Agent 记录 ARTIFACT_MISSING。摘要、签名、目标平台不匹配时丢弃临时包并报告 ARTIFACT_INVALID。启动失败时恢复上一个可运行实例。
+首轮制品目标为 `os=windows`、`arch=amd64`。例如策略指定 aidr-vendor-1.4.0，Agent 下载并校验签名元数据、长度及摘要，再安装到版本独立目录并完成组件接入，确认目标状态后回 applied；组件接入细节不在本稿范围。失败时返回策略 failed 以及组件 error_code。网络中断时退避重下。制品不存在或当前身份不可见时返回 NOT_FOUND，Agent 记录 ARTIFACT_MISSING。摘要、签名、目标平台不匹配时丢弃临时包并报告 ARTIFACT_INVALID。启动失败时恢复上一个可运行实例。
 
 #### 上传下载消息定义（Proto 草案）
 
-本节下载与第 7 节上传共用一组类型化消息，放同一个 proto（package `aidr.endpoint.v1`），不拆多文件：同一条 mTLS 连接、消息仅十余条，冻结时与第 2 节的 `Transfer`/`Telemetry` 合入同一个 `endpoint.proto`。厂商不实现这两组 service——制品由 AIDR sign 工具打包、平台托管，附件上传是 Agent 内部行为，厂商只见第 4、5、7 节的本机接口。
+本节下载与第 5 节上传共用一组类型化消息，放同一个 proto（package `aidr.endpoint.v1`），不拆多文件：同一条 mTLS 连接、消息仅十余条，冻结时与第 2 节的 `Transfer`/`Telemetry` 合入同一个 `endpoint.proto`。这两组 service 属于 Agent 与管理端之间的交互——制品由 AIDR 打包工具生成、平台托管，附件上传是 Agent 与管理端之间的行为，与第三方厂商无接口约定。
 
 ~~~proto
 syntax = "proto3";
@@ -605,7 +647,7 @@ message ArtifactRequest {
   string artifact_id = 1; // [Elkeid 无] 策略引用的不可变制品 ID
 }
 
-// 服务端流帧。v1 Frame{kind, body, data} 弱类型外壳的类型化替代。
+// 服务端流帧：必发首帧 header，之后按偏移升序发数据块。
 message DownloadFrame {
   oneof payload {
     ArtifactHeader header = 1; // 必发首帧
@@ -635,9 +677,7 @@ message Manifest {
   string arch = 4;            // [Elkeid 无] 首轮固定 amd64
   string entrypoint = 5;      // [Elkeid 无] ZIP 根目录下可执行文件相对路径
   string runtime = 6;         // [Elkeid 无] process = Agent 管理的独立进程
-  int32 protocol_version = 7; // [Elkeid 无] 1=Demo，2=正式 JSON ACK；未知值拒绝安装
-  string ipc_transport = 8;   // [Elkeid 无] 可选：native（本机原生 IPC）/
-                              // tcp（TLS 回环 TCP）；省略时用 Agent 默认值
+  reserved 7, 8;              // [Elkeid 无] 字段号保留，本稿不含本机插件接口
 }
 
 message ArtifactChunk {
@@ -646,10 +686,8 @@ message ArtifactChunk {
                      // Elkeid FileUploadRequest.data #2（方向相反：那是上传）
 }
 
-// ========== 附件上传（第 7 节） ==========
-// 四个一问一答 RPC。插件先把文件写进交接目录（AIDR_EVIDENCE_DIR，以 file_id
-// 命名、先写临时文件再原子改名）并发 aidr.evidence.declared 声明；Agent 校验
-// 实际文件和摘要后建上传任务，等关联事件在平台确认后再上传。
+// ========== 附件上传（第 5 节） ==========
+// 四个一问一答 RPC。附件就绪后 Agent 建上传任务，等关联事件在平台确认后再上传。
 // 会话与设备绑定；相同 file_id 和文件元数据复用会话，同 ID 不同内容返回 ALREADY_EXISTS。
 // [Elkeid 有对照] Elkeid 用 FileExt/Upload 单条文件字节流（FileUploadRequest.token #1
 // 关联任务，流结束返回 FileUploadResponse.SUCCESS/FAILED）；AIDR 改为显式会话、
@@ -664,7 +702,7 @@ service Evidence {
 }
 
 message CreateUploadRequest {
-  string file_id = 1;      // [Elkeid 有对照] UUID，文件标识和交接文件名；关联机制
+  string file_id = 1;      // [Elkeid 有对照] UUID，文件标识；关联机制
                            // 对照 FileUploadRequest.token #1
   string kind = 2;         // [Elkeid 无] 首轮固定 scan_report（扫描报告）
   uint64 size_bytes = 3;   // [Elkeid 无] 实际字节数
@@ -715,178 +753,150 @@ message UploadComplete {
 }
 ~~~
 
-**来源**：[AIDR v1 制品下载和切换](../../archive/integration/aidr-endpoint-platform-v1.md#agent-下载安装和升级插件) · [Fleet Orbit TUF 实现说明](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/orbit/README.md) · [Elkeid Config 下载字段](elkeid/elkeid.md#字段字典)。
+**来源**：[Fleet Orbit TUF 实现说明](https://github.com/fleetdm/fleet/blob/3807bd79fedbd25424ae55738b03cc8a4ae28a80/orbit/README.md) · [Elkeid Config 下载字段](elkeid/elkeid.md#字段字典)。
 
-## 4. Agent 启动插件、本机建连和健康检查
+## 4. Agent → 平台遥测
 
-**现有。** 收到 running 目标且制品校验通过后，Agent 启动插件进程并分配地址，插件监听，Agent 拨号并验证实例 TLS 证书。插件验证每次 RPC 的 `instance-token` 元数据，值必须等于本次启动收到的 `DEMO_TOKEN`。同名元数据只能有一个值。传输复用 gRPC 与 Protobuf。
+Agent 开 `/aidr.endpoint.v1.Telemetry/Report` 双向流，消息结构见第 2 节 Proto 草案的 `EventBatch` / `EventBatchReply`。Agent 从持久队列发送，平台确认持久化后才允许清队列。每批 1–200 条，单条至多 16 KiB，解压后每批至多 1 MiB。
 
-**三端支持**：本节契约同时覆盖 Windows、macOS 和 Linux。平台差异只落在 `DEMO_IPC_TRANSPORT` 的取值上——Windows 用命名管道（`npipe`），macOS 与 Linux 用 Unix Socket（`unix`），两者都不可用时三端统一退到 TLS 回环 TCP（`tcp`）；启动参数、实例证书、token、Health 检查和事件流在三个平台上完全一致。首轮制品目标为 Windows（`os=windows`、`arch=amd64`），macOS/Linux 随制品扩展支持，协议无需改动。参照系里 Elastic Agent、osquery、Wazuh Agent 均为三端支持，Windows-only 只见于内核态检测阵营（Elkeid、Falco、Sysdig）；AIDR 插件为纯用户态进程，无内核依赖。
-
-**参考实现**：本节设计对标的友商是 **Elastic Agent**（`elastic/elastic-agent-client` V2 协议），它是唯一与 AIDR 同样做"实例 mTLS + token"的：Agent 启动组件子进程后把 `StartUpInfo` protobuf 写进其 stdin（含 gRPC 地址、CA/对端证书/私钥、认证 token、Agent 元数据），组件凭此反向建立 mTLS gRPC 通道，`CheckinV2` 双向流做状态对账（组件每 5 秒上报单元状态，Agent 回发期望配置），IPC 层按平台切换 named pipe/unix socket——三端同一套组件代码。AIDR 与它的差异：启动凭据经 `DEMO_*` 环境变量传递而非 stdin，就绪判定用标准 `Health/Check`（SERVING 门槛）替代自定义对账循环。其余参照：osquery 扩展（Thrift 裸 socket，无认证，AIDR 补了 TLS/token）、Elkeid（stdio 裸管道，Linux-only）、Falco（进程内动态库，无隔离）。
-
-| 启动参数 | 类型和线上取值 | 厂商处理 | 来源与产品字段对照 | Elkeid 对应 |
-|---|---|---|---|---|
-| DEMO_IPC_TRANSPORT | 必填 string，`npipe`、`unix`、`tcp` | 按平台取值：Windows 监听命名管道（`npipe`），macOS/Linux 监听 Unix Socket（`unix`），三端兜底监听 TLS 回环 TCP（`tcp`） | AIDR 现有启动契约，本稿补全三端平台映射。IPC 层按平台切换、上层协议三端一致的做法同 Elastic Agent（named pipe/unix socket 切换）。 | ⬜ 参考材料未覆盖同名启动参数或取值。此行来自 AIDR 本机启动契约。 |
-| DEMO_ENDPOINT | 必填 string | 按原值监听，插件重启后重新读取 | AIDR 现有启动契约。Elkeid、Elastic 与 FleetDM Orbit 的插件/组件机制仅作对照，本表变量由 AIDR 定义。 | ⬜ 参考材料未覆盖同名启动参数或取值。此行来自 AIDR 本机启动契约。 |
-| DEMO_VERSION | string | 制品版本 | AIDR 现有启动契约。Elkeid、Elastic 与 FleetDM Orbit 的插件/组件机制仅作对照，本表变量由 AIDR 定义。 | ⬜ 参考材料未覆盖同名启动参数或取值。此行来自 AIDR 本机启动契约。 |
-| DEMO_TOKEN | 必填 string | 每实例认证凭据，只用于验证 RPC，禁止写日志 | AIDR 现有启动契约。Elkeid、Elastic 与 FleetDM Orbit 的插件/组件机制仅作对照，本表变量由 AIDR 定义。 | ⬜ 参考材料未覆盖同名启动参数或取值。此行来自 AIDR 本机启动契约。 |
-| DEMO_PARENT_PIPE | string，`1` | 监听标准输入 EOF，随后退出 | AIDR 现有启动契约。Elkeid、Elastic 与 FleetDM Orbit 的插件/组件机制仅作对照，本表变量由 AIDR 定义。 | ⬜ 参考材料未覆盖同名启动参数或取值。此行来自 AIDR 本机启动契约。 |
-| DEMO_IPC_CERT / DEMO_IPC_KEY | 必填 string，PEM 证书和私钥 | 加载为插件 gRPC 服务端 TLS 凭据，私钥只在内存使用 | AIDR 现有启动契约。Elkeid、Elastic 与 FleetDM Orbit 的插件/组件机制仅作对照，本表变量由 AIDR 定义。 | ⬜ 参考材料未覆盖同名启动参数或取值。此行来自 AIDR 本机启动契约。 |
-
-`/grpc.health.v1.Health/Check` 请求 `service`（string，字段号 1）为空，表示检查整个插件。响应 `status`（枚举，字段号 1）使用标准 gRPC 取值。插件对空服务返回 `SERVING=1`（SDK 就绪）或 `NOT_SERVING=2`（尚未就绪）。`UNKNOWN=0` 与 `SERVICE_UNKNOWN=3` 均不能通过就绪门槛，后者是标准 Watch 的未知服务状态。
-
-**联调顺序**：Agent 分配实例命名管道 → 插件监听 → Agent 验证实例证书 → 调用 Check → 收到 SERVING → 打开事件流。
-
-| 故障 | 线上结果 | 处理 |
-|---|---|---|
-| 插件未监听或地址不一致 | 拨号失败 | Agent 在启动窗口内重试，超时报告启动失败 |
-| 实例证书不匹配 | TLS 握手失败 | 检查启动参数和证书来源 |
-| token 缺失或不符 | `UNAUTHENTICATED` | 核对本次启动参数，避免复用旧值 |
-| 未注册 RPC | `UNIMPLEMENTED` | 安装兼容插件 |
-| 插件退出 | RPC 中断 | Agent 按生命周期策略重启；启动参数重新分配 |
-
-**来源**：[AIDR 启动参数和证书](../../archive/integration/aidr-vendor-handoff.md) · [实例认证实现](../../../internal/component/component.go) · [gRPC Health 标准](https://grpc.io/docs/guides/health-checking/) · [Elastic Agent 客户端协议 V2](https://github.com/elastic/elastic-agent-client)（本节参考实现）。Elkeid 进程与插件接入可用于对比（stdio 裸管道，Linux-only），本机字段和 RPC 沿用 AIDR 已有契约。
-
-## 5. 插件事件、业务枚举和回执
-
-**现有传输**：`/demo.component.v1.Events/Stream`，双向流，两端消息都是 `google.protobuf.StringValue`，线上字段 `value` 为 string，编号 1。Agent 首条发送字面量 `ready`。插件随后发送一条 UTF-8 JSON 对象文本，等本地回执后才发下一条。Demo 回执是纯 event_id，Demo 接收器按原文保存。
-
-**拟定业务契约**：签名制品声明 `protocol_version=2`，使用下表结构和 JSON 回执。厂商只填插件字段。以下 JSON 对象字段默认必填，标“可选”时可省略。请求禁止 null。ID 为非空字符串，最多 128 字符。UUID 字段使用标准带连字符的 UUID 字符串。时间用 UTC RFC3339。摘要为小写十六进制 SHA-256。事件 JSON 最多 16 KiB。未知类型、未知枚举、未知请求字段或不支持的 schema 版本，统一拒绝该条消息。
-
-| 插件字段 | 类型、取值及业务含义 | 来源与产品字段对照 | Elkeid 对应 |
-|---|---|---|---|
-| type | string，取下表之一，决定 data 的结构 | Elkeid `records[].data_type`、FleetDM/osquery `log_type` 均区分业务记录类型；AIDR 使用自己的字符串枚举。 | 🟩 类型判别对应 `data_type`，为 int32，取值集合独立。 [Proto][elkeid-proto] |
-| schema_version | 整数，当前固定 `1`，业务结构版本 | AIDR v1 插件事件契约。 | ⬜ 固定版通用记录信封未见该字段。 [Proto][elkeid-proto] |
-| source_event_id | string，在同一终端、同一插件内跨重启唯一。重发使用原值及原始正文 | AIDR v1。Elastic Bulk `_id` 对照去重机制，作用域在平台索引。 | ⬜ 固定版通用记录信封未见该字段。 [Proto][elkeid-proto] |
-| observed_at | string，插件观测或完成检测的时间 | AIDR v1。Elkeid `records[].timestamp` 为 Unix 秒，Elastic `@timestamp` 为日期字段。 | ⬜ 固定版通用记录信封未见该字段。 [Proto][elkeid-proto] |
-| asset_id | string，资产发现和资产检测事件必填。同一资产跨事件沿用相同值，日志及附件声明省略 | AIDR v1 插件事件契约。 | ⬜ 固定版通用记录信封未见该字段。 [Proto][elkeid-proto] |
-| data | object，按 type 校验 | Elkeid Agent `records[].data`（AgentCenter `Data[].Body`）承载编码后的记录，Elastic Bulk 第二行承载业务 JSON；AIDR 用按 type 校验的 JSON object。 | 🟩 `records[].data` 传编码后的 Payload，`Payload.fields` 为字符串映射。 [Proto][elkeid-proto] |
-
-### 业务类型和 data 字段
-
-下列字符串字段非空，最多 256 字符。摘要字段最多 1024 字符，findings 最多 50 项。检测结果的规则类别、发现来源、SDK 错误码属于开放字符串，第三方在接入时交付取值清单。
-
-| type | 触发条件 | data 字段 | 来源与产品字段对照 | Elkeid 对应 |
-|---|---|---|---|---|
-| aidr.agent.discovered | 发现智能体资产 | `name` 名称、`kind` 智能体类型、`discovery_source` 发现来源，均 string。可选 `version` string | AIDR v1 业务定义。六份参考中未找到可直接复用的同名事件和字段。 | ⬜ 六份参考中的 Elkeid 材料未核实该 AIDR 业务事件或同结构载荷。 [Elkeid 采集字段表](elkeid/elkeid-fields.md) |
-| aidr.agent.log_observed | 观察到可上报日志 | `agent_asset_id` 引用智能体、`level` 日志级别、`category` 类别、`message_summary` 脱敏摘要，均 string。 `redacted` bool，固定 true | AIDR v1 业务定义。六份参考中未找到可直接复用的同名事件和字段。 | ⬜ 六份参考中的 Elkeid 材料未核实该 AIDR 业务事件或同结构载荷。 [Elkeid 采集字段表](elkeid/elkeid-fields.md) |
-| aidr.skill.discovered | 发现 Skill | `agent_asset_id` 所属智能体、`skill_name` 名称、`source_kind` 发现来源，均 string。可选 `version` string、`sha256` 制品摘要 | AIDR v1 业务定义。六份参考中未找到可直接复用的同名事件和字段。 | ⬜ 六份参考中的 Elkeid 材料未核实该 AIDR 业务事件或同结构载荷。 [Elkeid 采集字段表](elkeid/elkeid-fields.md) |
-| aidr.skill.scan_result | Skill 检测完成或失败 | `skill_asset_id` Skill ID，与外层 asset_id 相同。 `rule_set_version` 规则版本、`verdict` 结论、`severity` 风险级别，均 string。 `findings` 为数组，无发现时为 []。每项含 `rule_id`、`category`、`summary`，均 string。verdict=error 时必填 `error_code` string | AIDR v1，`verdict=error` 时的 `error_code` 为本稿补充。 | ⬜ 六份参考中的 Elkeid 材料未核实该 AIDR 业务事件或同结构载荷。 [Elkeid 采集字段表](elkeid/elkeid-fields.md) |
-| aidr.mcp.discovered | 发现 MCP 服务 | `agent_asset_id` 所属智能体、`server_name` 名称、`transport` 传输、`source_kind` 发现来源，均 string | AIDR v1 业务定义。六份参考中未找到可直接复用的同名事件和字段。 | ⬜ 六份参考中的 Elkeid 材料未核实该 AIDR 业务事件或同结构载荷。 [Elkeid 采集字段表](elkeid/elkeid-fields.md) |
-| aidr.mcp.risk_detected | 检出 MCP 风险 | `mcp_asset_id` MCP ID，与外层 asset_id 相同。 `rule_id`、`risk_category`、`severity`、`summary`，均 string | AIDR v1 业务定义。六份参考中未找到可直接复用的同名事件和字段。 | ⬜ 六份参考中的 Elkeid 材料未核实该 AIDR 业务事件或同结构载荷。 [Elkeid 采集字段表](elkeid/elkeid-fields.md) |
-| aidr.evidence.declared | 交接目录内附件已写完 | 见第 7 节。省略 asset_id | AIDR v1。FleetDM/osquery `carve_id` 可对照文件采集任务标识，Elkeid 使用任务 `token` 关联文件流。 | ⬜ 六份参考中的 Elkeid 材料未核实该 AIDR 业务事件或同结构载荷。 [Elkeid 采集字段表](elkeid/elkeid-fields.md) |
-
-| 枚举字段 | 线上值及业务含义 | 来源与产品字段对照 | Elkeid 对应 |
-|---|---|---|---|
-| level | `info` 信息，`warn` 警告，`error` 操作错误 | AIDR v1 的枚举取值，本稿补全业务语义。六份参考中未找到相同的取值集合。 | ⬜ 未核实同一枚举取值集合。 [Elkeid 采集字段表](elkeid/elkeid-fields.md) |
-| category（日志） | `security` 安全相关日志，`operation` 运行操作日志 | AIDR v1 的枚举取值，本稿补全业务语义。六份参考中未找到相同的取值集合。 | ⬜ 未核实同一枚举取值集合。 [Elkeid 采集字段表](elkeid/elkeid-fields.md) |
-| verdict（Skill） | `clean` 扫描完成且未发现风险，`suspicious` 风险证据待复核，`risk` 规则命中且确认风险，`error` 扫描未完成，不生成风险结论 | AIDR v1 的枚举取值，本稿补全业务语义。六份参考中未找到相同的取值集合。 | ⬜ 未核实同一枚举取值集合。 [Elkeid 采集字段表](elkeid/elkeid-fields.md) |
-| severity | `info` 仅记录，`low` 低风险，`medium` 中风险，`high` 高风险。Skill 的 clean 或 error 固定 info | AIDR v1 的枚举取值，本稿补全业务语义。六份参考中未找到相同的取值集合。 | ⬜ 未核实同一枚举取值集合。 [Elkeid 采集字段表](elkeid/elkeid-fields.md) |
-| transport（MCP） | `stdio` 标准输入输出，`sse` HTTP+SSE，`streamable_http` Streamable HTTP，`other` 已识别的其他传输 | AIDR v1 的枚举取值，本稿补全业务语义。六份参考中未找到相同的取值集合。 | ⬜ 未核实同一枚举取值集合。 [Elkeid 采集字段表](elkeid/elkeid-fields.md) |
-
-### 本地 ACK 与案例
-
-| 回执字段 | 类型与规则 | 来源与产品字段对照 | Elkeid 对应 |
-|---|---|---|---|
-| status | string。 `accepted` 已提交到本地持久队列，插件可删除待发副本。 `rejected` 永久拒绝，记下原因并停止重发原正文。 `retry` 暂时未确认入队，保留原事件并退避 | AIDR v1 `accepted/rejected/retry`。Elastic Bulk 也有逐项确认，但在平台侧使用 HTTP 风格 `status`。 | ⬜ 参考材料未核实同一插件本地落盘 ACK 字段或取值。 |
-| event_id | UUID，仅 accepted 时必填。相同源 ID 和正文重放时返回原 ID | AIDR 本地落盘 ID。Elastic Bulk `_id` 是平台文档 ID，作为对账机制对照。 | ⬜ 参考材料未核实同一插件本地落盘 ACK 字段或取值。 |
-| error_code | string，仅 rejected 或 retry 时必填。 `INVALID_EVENT` 字段或枚举无效，`UNSUPPORTED_SCHEMA` 版本不支持，`SOURCE_ID_CONFLICT` 同 ID 不同正文，`QUEUE_FULL` 本地队列限额，`STORAGE_UNAVAILABLE` 本地存储暂不可用 | `INVALID_EVENT/QUEUE_FULL` 来自 AIDR v1，其余取值为本稿补充。 | ⬜ 参考材料未核实同一插件本地落盘 ACK 字段或取值。 |
-
-插件发送的 StringValue.value 文本：
-
-~~~json
-{"type":"aidr.skill.scan_result","schema_version":1,"source_event_id":"scan-42","observed_at":"2026-11-27T02:00:00Z","asset_id":"skill-7","data":{"skill_asset_id":"skill-7","rule_set_version":"1.4","verdict":"suspicious","severity":"medium","findings":[{"rule_id":"SK-01","category":"permission_review","summary":"权限范围需要复核"}]}}
-~~~
-
-Agent 在本地事务提交后返回：
-
-~~~json
-{"status":"accepted","event_id":"00000000-0000-4000-8000-000000000042"}
-~~~
-
-业务枚举不合法时返回：
-
-~~~json
-{"status":"rejected","error_code":"INVALID_EVENT"}
-~~~
-
-流断开或超时导致没有回执时，插件保留原事件，等 Agent 重新开流并发 ready 后重放。未知 ACK 状态视为协议不兼容，保留未确认事件并报错。处置或配置通过专用接口执行，事件流只传数据。
-
-**来源**：[现有 Events Proto](../../../api/proto/component/v1/events.proto) · [现有收发实现](../../../internal/component/events.go) · [AIDR v1 事件与 ACK](../../archive/integration/aidr-endpoint-platform-v1.md#4-数据面ips-和-av)。事件信封与业务枚举来自 AIDR 归档基线，精确枚举含义和结构错误码为本稿补充。Elkeid 的 `data_type` / `body` 提供类型与载荷分离的参考，编号和字符串映射属于 Elkeid。 [Elkeid 固定 Proto](https://github.com/bytedance/Elkeid/blob/c906c512d20c0d56f2b779b8558ed69abae718c8/agent/proto/grpc.proto)
-
-## 6. Agent → 平台遥测
-
-**拟定。** Agent 开 `/aidr.endpoint.v1.Telemetry/Report` 双向流，消息结构见第 2 节 Proto 草案的 `EventBatch` / `EventBatchReply`（Demo 过渡期沿用 Frame，`kind` 为 `EventBatch` / `EventBatchReply`，data 空）。Agent 从持久队列发送，平台确认持久化后才允许清队列。每批 1–200 条，单条至多 16 KiB，解压后每批至多 1 MiB。
+遥测载荷来自插件 `AIDREvent`；插件侧 PB、事件类型与字段定义见 [Agent 底座 ↔ 插件 Protobuf 协议](agent-plugin-protobuf-v1.md)。本稿只定义端管信封和映射规则，不重复定义插件业务字段。
 
 | 字段 | 类型与含义 | 来源与产品字段对照 | Elkeid 对应 |
 |---|---|---|---|
-| body.batch_id | UUID，批次对账。原批重传保持值，重新组批生成新值 | AIDR v1 批次 ID。Elkeid `PackagedData` 与 FleetDM/osquery 日志均可批量提交，批次跟踪字段不同。 | ⬜ 固定版 Transfer schema 未见该字段或枚举。 [Proto][elkeid-proto] |
-| body.events[] | 插件事件对象，保留通过校验的字段，附加以下 Agent 字段 | AIDR v1。Elkeid `PackagedData.records` 承载多条记录，Elastic Bulk 批次承载多条文档。 | 🟩 `PackagedData.records` 为批量记录。 [Proto][elkeid-proto] |
-| events[].event_id | UUID，本地落盘 ID；平台按租户、Agent 和 event_id 去重 | AIDR v1。Elastic Bulk `_id` 可对照平台文档标识和逐项对账。 | ⬜ 固定版 Transfer schema 未见该字段或枚举。 [Proto][elkeid-proto] |
-| events[].component_id / instance_id | string，Agent 指定的组件与实例 | AIDR v1 遥测契约。 | ⬜ 固定版 Transfer schema 未见该字段或枚举。 [Proto][elkeid-proto] |
-| events[].sequence / timestamp | 整数和 UTC 时间，分别为本地持久化序号（从 1）与接收时间 | AIDR 序号和接收时间。Elkeid `records[].timestamp` 和 Elastic `@timestamp` 可对照时间字段，时间来源与单位各有定义。 | 🟩 部分对应。`records[].timestamp` 为 Unix 秒，未见本行序号。 [Proto][elkeid-proto] |
-| body.results[].event_id | UUID，对应请求中的一条事件 | AIDR v1。Elastic Bulk 用 `items[].create._id` 对账。 | ⬜ 固定版 Transfer schema 未见该字段或枚举。 [Proto][elkeid-proto] |
-| body.results[].status | string，`accepted` 已在平台持久化，`duplicate` 已持久化相同事件，`rejected` 永久拒绝，`retry` 暂未确认 | AIDR v1 自有枚举。Elastic Bulk `items[].create.status` 逐项返回 HTTP 风格状态。 | ⬜ 固定版 Transfer schema 未见该字段或枚举。 [Proto][elkeid-proto] |
+| body.batch_id | UUID，批次对账。原批重传保持值，重新组批生成新值 | AIDR 批次 ID。Elkeid `PackagedData` 与 FleetDM/osquery 日志均可批量提交，批次跟踪字段不同。 | ⬜ 固定版 Transfer schema 未见该字段或枚举。 [Proto][elkeid-proto] |
+| body.events[] | 事件信封对象：`type` string（取插件 `AIDREvent.event_type`）、`schema_version` 整数（当前固定 1，对应 `aidr.plugin.v1`）、`source_event_id` string（取插件 `AIDREvent.event_id`，同一终端同一插件内跨重启唯一，重传保持原值及正文）、`observed_at` UTC RFC3339（由插件 `timestamp` 毫秒值转换）、`asset_id` string（取插件 `AIDREvent.asset_id`，资产类事件必填）、`data` object（字段名与类型沿用 `AIDREvent` 未提升到信封的字段，按 type 校验），并附加下列 Agent 字段。事件类型清单以插件 PB 文档为准，不在本稿重列 | AIDR。Elkeid `PackagedData.records` 承载多条记录，Elastic Bulk 批次承载多条文档。 | 🟩 `PackagedData.records` 为批量记录。 [Proto][elkeid-proto] |
+| events[].event_id | UUID，Agent 本地落盘 ID，与 `source_event_id` 不同；平台按租户、Agent 和 event_id 去重，重传保持原值 | AIDR。Elastic Bulk `_id` 可对照平台文档标识和逐项对账。 | ⬜ 固定版 Transfer schema 未见该字段或枚举。 [Proto][elkeid-proto] |
+| events[].component_id / instance_id | string，Agent 指定的组件与实例；`component_id` 对应插件 `plugin_id`（插件留空时由 Agent 用其注册 ID 补齐），`instance_id` 为 Agent 本地实例标识，无插件对应字段 | AIDR 遥测契约。 | ⬜ 固定版 Transfer schema 未见该字段或枚举。 [Proto][elkeid-proto] |
+| events[].sequence / timestamp | 整数和 UTC 时间，分别为 Agent 本地持久化序号（从 1）与接收时间；`timestamp` 对应插件 `received_at_ms` 的时间点（插件未填时用 Agent 读到该事件的本地时间） | AIDR 序号和接收时间。Elkeid `records[].timestamp` 和 Elastic `@timestamp` 可对照时间字段，时间来源与单位各有定义。 | 🟩 部分对应。`records[].timestamp` 为 Unix 秒，未见本行序号。 [Proto][elkeid-proto] |
+| body.results[].event_id | UUID，对应请求中的一条事件 | AIDR。Elastic Bulk 用 `items[].create._id` 对账。 | ⬜ 固定版 Transfer schema 未见该字段或枚举。 [Proto][elkeid-proto] |
+| body.results[].status | string，`accepted` 已在平台持久化，`duplicate` 已持久化相同事件，`rejected` 永久拒绝，`retry` 暂未确认 | AIDR 自有枚举。Elastic Bulk `items[].create.status` 逐项返回 HTTP 风格状态。 | ⬜ 固定版 Transfer schema 未见该字段或枚举。 [Proto][elkeid-proto] |
 | body.results[].error_code | 仅 rejected / retry 必填。 `INVALID_EVENT`、`UNSUPPORTED_SCHEMA`、`EVENT_ID_CONFLICT` 为永久拒绝，`STORAGE_UNAVAILABLE` 为暂态 | AIDR 本稿明确永久/暂态错误。Elastic Bulk 各条失败含 `error` 详情。 | ⬜ 固定版 Transfer schema 未见该字段或枚举。 [Proto][elkeid-proto] |
 
-Agent 发送 EventBatch，body 如下。
+#### 插件 AIDREvent → TelemetryEvent 映射
+
+Agent 把一条插件 `AIDREvent` 转成一条 `TelemetryEvent`：六个字段（`event_id`、`event_type`、`timestamp`、`asset_id`、`plugin_id`、`received_at_ms`）提升到信封或由 Agent 补齐，其余字段进入 `data`。插件 proto 大版本升级时先提升 `schema_version`，再更新 `data` 校验规则。
+
+| TelemetryEvent 字段 | 插件来源 | 转换与约束 |
+|---|---|---|
+| `type` | `AIDREvent.event_type` | 原值透传，不加工前缀 |
+| `schema_version` | 插件 proto 大版本 | 当前 1，对应 `aidr.plugin.v1` |
+| `source_event_id` | `AIDREvent.event_id` | UUID 原值；同一事件的原批重传保持该值 |
+| `observed_at` | `AIDREvent.timestamp` | Unix 毫秒转 UTC RFC3339，保留毫秒，例如 `2026-11-27T02:00:00.000Z` |
+| `asset_id` | `AIDREvent.asset_id` | 与插件 `Asset.asset_id` 为同一标识，Agent 不重新生成 |
+| `data` | `AIDREvent` 其余字段 | JSON object；字段名、类型沿用插件 PB；未用字段省略，proto3 默认值省略。`data_json` 是这段 object 的序列化文本 |
+| `component_id` | `AIDREvent.plugin_id` / `GetStatusResponse.plugin_id` | 插件留空时由 Agent 用其注册 ID 补齐 |
+| `timestamp` | `AIDREvent.received_at_ms` 或 Agent 接收时间 | UTC RFC3339；插件未填时用 Agent 读到该事件的本地时间 |
+| `event_id` / `sequence` | Agent 本地 | 无插件对应字段；分别是平台去重键与本地序号 |
+| `instance_id` | Agent 本地 | 无插件对应字段 |
+
+`data` 按 `event_type` 填写的字段分组如下，完整字段定义以插件 PB 文档为准：
+
+| 事件分组 | `data` 中常见字段 |
+|---|---|
+| 通用归因 | `risk_level`、`user_id`、`session_id`、`agent_id`、`agent_name`、`tenant_id`、`trace_id`、`session_reason` |
+| 行为 | `behavior_type`、`event_kind`、`rule_id`、`rule_name`、`attack_type`、`action`、`severity`、`alert_id`、`process_name`、`process_pid`、`process_path`、`command_line`、`prompt_digest`、`tool_name`、`target_url`、`target`、`evidence`、`description` |
+| 工具链路 | `chain_id`、`step_id`、`parent_step_id`、`relation_confirmed`、`step_type`、`tool_type`、`server_name`、`args_digest`、`result_digest`、`result_status`、`started_ms`、`ended_ms`、`step_count`、`total_duration_ms`、`end_status`、`risk_event_count` |
+| 扫描 `scan.result` | `scan_id`、`target_type`、`target_name`、`conclusion`、`report_digest`、`findings`（`id` / `severity` / `desc` / `file`） |
+| 策略与处置回执 | `policy_id`、`policy_version`、`policy_result`、`effect`、`effective_at_ms`、`action_id`、`action_type`、`action_result`、`code`、`executed_at_ms`、`status`、`message` |
+| 插件状态与心跳 | `status`、`state`、`uptime_s`、`total_events`、`dropped_count`、`queue_size`、`cpu_percent`、`mem_bytes`、`error_msg` |
+
+`plugin.status` / `plugin.heartbeat` 同时用于第 2 节组件状态映射；`policy.ack` 同时用于 `PolicyAck`；`action.receipt` 只走本节遥测。插件 `ExecuteAction` 与 `UpdatePolicy` 是本机交互，不占用端管 Downlink RPC。
+
+Agent 发送 EventBatch，body 如下；示例事件来自插件 `AIDREvent`（`event_type=scan.result`），`data` 字段沿用插件 PB 命名。
 
 ~~~json
-{"batch_id":"00000000-0000-4000-8000-000000000090","events":[{"type":"aidr.skill.scan_result","schema_version":1,"source_event_id":"scan-42","observed_at":"2026-11-27T02:00:00Z","asset_id":"skill-7","data":{"skill_asset_id":"skill-7","rule_set_version":"1.4","verdict":"suspicious","severity":"medium","findings":[{"rule_id":"SK-01","category":"permission_review","summary":"权限范围需要复核"}]},"event_id":"00000000-0000-4000-8000-000000000042","component_id":"aidr-vendor","instance_id":"instance-21","sequence":1,"timestamp":"2026-11-27T02:00:01Z"}]}
+{
+  "batch_id": "00000000-0000-4000-8000-000000000090",
+  "events": [
+    {
+      "type": "scan.result",
+      "schema_version": 1,
+      "source_event_id": "evt-6f3a9b21-8c4d-4e17-9a02-1b7c5d0e3f44",
+      "observed_at": "2026-11-27T02:00:00.000Z",
+      "asset_id": "a-7d21f0c4b9e4",
+      "data": {
+        "risk_level": "medium",
+        "user_id": "zhangsan",
+        "session_id": "sess-8f3e1c",
+        "agent_id": "agent-qwen-01",
+        "agent_name": "qwen-agent",
+        "scan_id": "scan-42",
+        "target_type": "skill",
+        "target_name": "skill-7",
+        "conclusion": "谨慎使用",
+        "report_digest": "sha256:9f8e2c...",
+        "findings": [
+          {
+            "id": "SK-01",
+            "severity": "medium",
+            "desc": "权限范围需要复核",
+            "file": "skills/skill-7/SKILL.md"
+          }
+        ]
+      },
+      "event_id": "00000000-0000-4000-8000-000000000042",
+      "component_id": "fangcun-observer",
+      "instance_id": "instance-21",
+      "sequence": 1,
+      "timestamp": "2026-11-27T02:00:01Z"
+    }
+  ]
+}
 ~~~
 
 平台返回 EventBatchReply，body 如下。
 
 ~~~json
-{"batch_id":"00000000-0000-4000-8000-000000000090","results":[{"event_id":"00000000-0000-4000-8000-000000000042","status":"accepted"}]}
+{
+  "batch_id": "00000000-0000-4000-8000-000000000090",
+  "results": [
+    {
+      "event_id": "00000000-0000-4000-8000-000000000042",
+      "status": "accepted"
+    }
+  ]
+}
 ~~~
 
-收到 accepted 或 duplicate 清除对应待发项。rejected 停止发送并记录原因。retry、缺失结果或流中断时保留对应事件，维持 event_id 重传。响应里的未知状态视为未确认。批次帧无法解码时返回 INVALID_ARGUMENT，修正封装后再发送。Agent 重连上报与插件本地 ACK 独立。
+收到 accepted 或 duplicate 清除对应待发项。rejected 停止发送并记录原因。retry、缺失结果或流中断时保留对应事件，维持 event_id 重传。响应里的未知状态视为未确认。批次帧无法解码时返回 INVALID_ARGUMENT，修正封装后再发送。重连上报独立于事件来源。
 
-**来源**：[AIDR v1 遥测](../../archive/integration/aidr-endpoint-platform-v1.md#4-数据面ips-和-av) · [Elastic 8.17.0 Bulk 逐条结果](elastic/elastic.md) · [Elkeid 双向流及 Kafka 边界](elkeid/elkeid.md)。AIDR 使用自己的回执枚举和去重键。
+**来源**：[Elastic 8.17.0 Bulk 逐条结果](elastic/elastic.md) · [Elkeid 双向流及 Kafka 边界](elkeid/elkeid.md)。AIDR 使用自己的回执枚举和去重键。
 
-## 7. 附件声明与 Agent 上传
+## 5. Agent 附件上传
 
-**拟定。** 插件将文件写到 Agent 授权的交接目录，以 file_id 命名，先写临时文件再原子改名。正式模式下由 Agent 通过启动参数 `AIDR_EVIDENCE_DIR` 提供绝对目录路径（本稿补充）。目录未提供时禁用附件交接。插件发送第 5 节信封，type 为 `aidr.evidence.declared`。Agent 校验实际文件和摘要，持久保存上传任务后回本地 accepted。Agent 等关联事件在平台确认后再上传。上传接口走 Agent 的 mTLS，方法前缀为 `/aidr.endpoint.v1.Evidence/`，对应 RPC 为 `CreateUpload → UploadSession`、`GetUpload → UploadSession`、`PutChunk → UploadOffset`、`Complete → UploadComplete`，消息结构见第 3 节 Proto 草案的 Evidence service（Demo 过渡期沿用 Frame，kind 取值同上，块字节写入 Frame.data，其余字段写入 Frame.body）。
-
-| data 字段 | 类型和业务含义 | 来源与产品字段对照 | Elkeid 对应 |
-|---|---|---|---|
-| file_id | UUID，文件标识和交接文件名 | AIDR UUID。FleetDM/osquery `carve_id` 同样由发送端标识采集，Elkeid 用 `token` 关联文件任务。 | 🟩 有任务关联 `FileUploadRequest.token`。未见相同文件 UUID 字段。 [文件流](elkeid/elkeid.md#字段字典) |
-| related_source_event_id | string，引用同一插件的源事件 | AIDR v1 附件声明。 | ⬜ 固定版文件流未见同名声明字段或同一取值。 [Proto][elkeid-proto] |
-| kind | string，首轮固定 `scan_report`，表示扫描报告 | AIDR v1 附件声明。 | ⬜ 固定版文件流未见同名声明字段或同一取值。 [Proto][elkeid-proto] |
-| size_bytes | 非负整数，实际字节数 | AIDR 字节数。FleetDM/osquery `carve_size` 是归档总字节数。 | ⬜ 固定版文件流未见同名声明字段或同一取值。 [Proto][elkeid-proto] |
-| sha256 | string，整个文件 SHA-256 | AIDR 上传文件完整性校验。Elkeid 已核实的是下载配置 `Config.sha256`。 | ⬜ 固定版文件流未见同名声明字段或同一取值。 [Proto][elkeid-proto] |
+附件的来源与就绪方式由 AIDR 终端实现决定，不在本稿范围。Agent 在附件就绪后建立上传任务，等关联事件在平台确认后再上传。上传接口走 Agent 的 mTLS，方法前缀为 `/aidr.endpoint.v1.Evidence/`，对应 RPC 为 `CreateUpload → UploadSession`、`GetUpload → UploadSession`、`PutChunk → UploadOffset`、`Complete → UploadComplete`，消息结构见第 3 节 Proto 草案的 Evidence service。
 
 | Evidence RPC | 请求字段 | 成功响应字段 | 来源与产品字段对照 | Elkeid 对应 |
 |---|---|---|---|---|
 | CreateUpload | file_id、kind、size_bytes、sha256 同声明，`event_id` UUID 为平台关联事件，`content_type` string，取 `application/octet-stream`（二进制）、`application/json`（JSON）或 `text/plain`（纯文本） | `upload_id` UUID，`offset` 非负整数（下一字节），`chunk_size` 正整数（块上限），`expires_at` UTC，`status` | FleetDM/osquery carve begin 有 `carve_id`、`carve_size`、`block_size`，返回 `session_id`；AIDR 使用 `file_id`、`size_bytes`、`chunk_size`、`upload_id`。 | ⬜ 固定版文件流未见该会话 RPC 或对应字段。 [Proto][elkeid-proto] |
-| GetUpload | upload_id | offset、size_bytes、status、expires_at、file_id | AIDR v1 查询确认偏移。FleetDM/osquery 按 `block_id` 检查顺序。 | ⬜ 固定版文件流未见该会话 RPC 或对应字段。 [Proto][elkeid-proto] |
+| GetUpload | upload_id | offset、size_bytes、status、expires_at、file_id | AIDR 查询确认偏移。FleetDM/osquery 按 `block_id` 检查顺序。 | ⬜ 固定版文件流未见该会话 RPC 或对应字段。 [Proto][elkeid-proto] |
 | PutChunk | upload_id、offset、`chunk_sha256` string、`data` Protobuf bytes，长度 1–chunk_size | offset（已持久化的下一字节） | FleetDM/osquery `block_id` + `data`；Elkeid 文件流传字节。AIDR 按字节 `offset` 确认并增加 `chunk_sha256`。 | 🟩 有带 `token` 的文件字节流。未见本行偏移、块摘要及确认偏移。 [Proto][elkeid-proto] |
-| Complete | upload_id | file_id 和 status=complete，校验通过并已提交 | AIDR v1 显式提交；Elkeid 文件流结束后返回 `SUCCESS/FAILED`。 | 🟩 有流结束后的 `SUCCESS/FAILED`，未见单独 Complete 调用。 [Proto][elkeid-proto] |
+| Complete | upload_id | file_id 和 status=complete，校验通过并已提交 | AIDR 显式提交；Elkeid 文件流结束后返回 `SUCCESS/FAILED`。 | 🟩 有流结束后的 `SUCCESS/FAILED`，未见单独 Complete 调用。 [Proto][elkeid-proto] |
 
-status 为 `uploading`（会话可继续写入）或 `complete`（文件已校验并提交）。会话与设备绑定。相同 file_id 和文件元数据复用会话，同 ID 不同内容返回 ALREADY_EXISTS。AIDR v1 使用同一 Frame 外壳，正式 Proto 需要双方发布确认。
+status 为 `uploading`（会话可继续写入）或 `complete`（文件已校验并提交）。会话与设备绑定。相同 file_id 和文件元数据复用会话，同 ID 不同内容返回 ALREADY_EXISTS。
+
+插件 `AIDREvent.evidence` 与 `data` 中的 `args_digest` / `result_digest` / `report_digest` 是脱敏后的字符串或摘要，随遥测一起上报，不等同于本节上传的附件；需要提交原文件时另走 Evidence RPC，`CreateUpload.event_id` 关联第 4 节事件的 `event_id`。
 
 例：发送内容 `abc`，size_bytes=3，sha256 为 `ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad`。CreateUpload 得到 offset=0，发送 offset=0 的 3 字节块（块摘要与整文件摘要相同），收到 offset=3，再 Complete 得到 complete。
 
 | 故障 | 处理 |
 |---|---|
-| 交接文件缺失、路径不安全或摘要不符 | 本地拒绝声明，插件修复后提交新声明 |
 | 块偏移不符 | FAILED_PRECONDITION，GetUpload 查询服务端 offset 后续传 |
 | 分块应答丢失 | 先 GetUpload，按服务端确认的 offset 恢复 |
 | 会话过期 | FAILED_PRECONDITION，确认会话过期后用原 file_id 重建 |
 | 块或全文件校验失败 | DATA_LOSS，不能标记完成。Agent 重新校验暂存文件，内容正确才重新上传 |
 
-**来源**：[AIDR v1 文件通道](../../archive/integration/aidr-endpoint-platform-v1.md#5-文件通道) · [FleetDM/osquery 分块上传](fleetdm/fleetdm.md#文件采集上传) · [Elkeid 文件流](elkeid/elkeid.md)。AIDR 的 offset、SHA-256 和提交语义来自归档基线，Fleet 的 block_id 是分块机制参考。
+**来源**：[FleetDM/osquery 分块上传](fleetdm/fleetdm.md#文件采集上传) · [Elkeid 文件流](elkeid/elkeid.md)。AIDR 的 offset、SHA-256 和提交语义为本稿定义，Fleet 的 block_id 是分块机制参考。
 
 ## 联调验收
 
 | 场景 | 核对点 |
 |---|---|
-| 插件就绪并上报 | Agent 发起连接，Health=SERVING，ready 后发送第 5 节样例，得到本地 event_id；平台能按同一 ID 查到事件 |
-| 非法枚举和断线 | 非法值收到 rejected。回执丢失后原样重放，已提交事件返回原 event_id |
+| 遥测上报与对账 | Agent 发送 EventBatch，平台 accepted 后能按同一 event_id 查到事件；同一 event_id 重传返回 duplicate |
+| 插件字段映射 | 插件 `AIDREvent` 上报后，`source_event_id` 等于插件 `event_id`，`data` 字段与插件 PB 同名；`policy.ack` 能按 `revision` 对上端管 `PolicyAck` |
+| 断线重传 | 回执丢失或流中断后，原批以相同 batch_id 和 event_id 重传，已确认事件不重复计数 |
 | 认证及上线 | 可信客户端证书完成 TLS，首包使 Agent 加入在线连接池。过期证书握手失败。重复在线 ID 产生冲突 |
 | 心跳与管控 | 心跳 seq 和 ack_seq 对齐，策略 received 与 applied 可独立观测 |
 | 文件 | 三字节上传中断后按确认偏移恢复。制品摘要错误时禁止安装并上报失败 |
 
-第三方目前可按现有 gRPC 接口走 Demo，正式 JSON ACK、正式端管 RPC 和文件接口须以冻结后的联调版本为准。上线前需确认部署证书材料、业务报文映射和制品更新组件选型，并用管理端和第三方插件做端到端验证。
+第三方联调须以冻结后的本稿联调版本为准。上线前需确认部署证书材料、业务报文映射和制品更新组件选型，并用管理端与装载第三方制品的 Agent 做端到端验证。

@@ -1,6 +1,6 @@
 # FleetDM Orbit 认证过程
 
-本文从 [接口规格](fleetdm-orbit.md) 提炼认证过程，配套可运行示例 [demo.py](demo.py)。固定提交 `3807bd7`，主机身份与 SCEP 结论以接口规格为准。
+本文从 [接口规格](fleetdm-orbit.md) 提炼认证过程。固定提交 `3807bd7`，主机身份与 SCEP 结论以接口规格为准。
 
 ## 角色与凭据
 
@@ -86,15 +86,3 @@ SCEP 路径在 `/api/fleet/orbit/host_identity/scep` 签发或更新证书。首
 | 运行期节点凭据拒绝 | 401 `Authentication required` | 启动 45 秒计时 |
 | 配置接口网络/5xx | 非业务错误 | 额外重试一次 |
 | WebSocket 升级失败 | 401 或 404 | 回退 HTTP 轮询，按退避重连 |
-
-## Demo 说明
-
-`demo.py` 在本机启动 mock Fleet Server，模拟节点密钥文件，走通注册、密钥复用、运行期 401 计时与强制重注册、WebSocket 升级头校验。运行：
-
-```powershell
-python demo.py
-```
-
-脚本验证：首次注册签发 `orbit_node_key`、二次启动复用本地密钥、401 达到阈值触发强制重注册、升级请求缺少 `Node key` 头被拒。全部通过输出 `PASS`。
-
-Demo 不实现真实 SCEP/CMS 签发、HTTP 消息签名或 WebSocket 数据帧，仅复现凭据流转与升级鉴权边界。

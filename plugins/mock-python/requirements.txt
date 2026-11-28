@@ -1,2 +1,0 @@
-grpcio==1.76.0
-PyInstaller==6.16.0

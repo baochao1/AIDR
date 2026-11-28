@@ -1,6 +1,6 @@
 # Elastic Agent / Fleet 认证过程
 
-本文从 [接口规格](elastic.md) 提炼认证过程，配套可运行示例 [demo.py](demo.py)。固定版本、字段边界与未验证项以接口规格为准：Fleet Server `d05ee7b`、Agent `96f2b9f`、Kibana `86cbc85`。
+本文从 [接口规格](elastic.md) 提炼认证过程。固定版本、字段边界与未验证项以接口规格为准：Fleet Server `d05ee7b`、Agent `96f2b9f`、Kibana `86cbc85`。
 
 ## 角色与凭据
 
@@ -81,14 +81,4 @@ sequenceDiagram
 | check-in 失败 | 非 2xx | 指数退避和抖动，上下文结束即退出 |
 | Bulk 逐项失败 | 409 / 429 / ≥500 | 409 按重复项处理不重试；429/5xx 重试失败子集 |
 
-## Demo 说明
 
-`demo.py` 在本机启动 mock Kibana、Fleet Server 和 Elasticsearch，用标准库 `http.server` 走完上述五步。运行：
-
-```powershell
-python demo.py
-```
-
-脚本依次验证：无认证头注册返回 401、正确注册令牌换得 access key、错误 access key 签入返回 401、正确签入下发 output key、Bulk 返回逐条结果。全部断言通过时输出 `PASS`，否则以非零码退出。
-
-Demo 只覆盖凭据流转与请求顺序，不建立真实 TLS、不连接真实 Fleet/ES，也不验证策略内容与集成包处理。

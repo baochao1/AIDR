@@ -1,6 +1,6 @@
 # FleetDM osquery 认证过程
 
-本文从 [接口规格](fleetdm.md) 提炼认证过程，配套可运行示例 [demo.py](demo.py)。固定服务端提交 `3807bd7`，osquery 样本 `5.18.1`，字段与错误边界以接口规格为准。
+本文从 [接口规格](fleetdm.md) 提炼认证过程。固定服务端提交 `3807bd7`，osquery 样本 `5.18.1`，字段与错误边界以接口规格为准。
 
 ## 角色与凭据
 
@@ -80,14 +80,4 @@ sequenceDiagram
 | 严格头缺失或无效 | 401 + `node_invalid: true` | 按失效标记重新注册 |
 | 日志 `log_type` 未知 | 500，省略 `node_invalid` | 不清除密钥，按失败路径退避 |
 
-## Demo 说明
-
-`demo.py` 在本机启动 mock Fleet Server，模拟本地 `nodeKey` 存储，完整走通注册、配置拉取、错误凭据触发重注册。运行：
-
-```powershell
-python demo.py
-```
-
-脚本验证：首次注册换得 node_key、复用本地 nodeKey 不再注册、错误密钥返回 401 与 `node_invalid: true` 后自动重新注册。全部通过输出 `PASS`。
-
-Demo 只覆盖 osquery 主路径 `/api/osquery` 的凭据流转；Orbit 自身的节点密钥与 SCEP 见 `../fleetdm-orbit/authentication.md`。
+Orbit 自身的节点密钥与 SCEP 见 `../fleetdm-orbit/authentication.md`。

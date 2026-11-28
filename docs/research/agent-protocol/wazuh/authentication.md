@@ -1,6 +1,6 @@
 # Wazuh 4.14.0 认证过程
 
-本文从 [接口规格](wazuh.md) 提炼认证过程，配套可运行示例 [demo.py](demo.py)。固定版本 `e0707d7`，注册与运行期帧结论以接口规格为准。
+本文从 [接口规格](wazuh.md) 提炼认证过程。固定版本 `e0707d7`，注册与运行期帧结论以接口规格为准。
 
 ## 角色与凭据
 
@@ -69,15 +69,3 @@ sequenceDiagram
 | 响应格式或落盘失败 | 不进入注册完成状态 |
 | 启动无 ACK | 按 `retry_interval` 尝试 `max_retries` 次，用完后可尝试重新注册 |
 | 密钥或计数不匹配 | 帧被拒，内部记录 `KS_ENCKEY` / `KS_RIDS` |
-
-## Demo 说明
-
-`demo.py` 在本机启动 mock `authd`，以 TCP 文本交换复现注册、密码错误与响应落盘格式；随后演示 1514 安全消息的封帧与 MD5/计数器校验（加密体用明文占位，明确标注简化）。运行：
-
-```powershell
-python demo.py
-```
-
-脚本验证：正确注册文本换得 `OSSEC K:` 响应、错误密码返回 `ERROR:`、响应四项解析与 `client.keys` 格式、简化帧的校验通过。全部通过输出 `PASS`。
-
-Demo 不建立真实 TLS、不实现 AES/Blowfish 加解密，也不连接 Manager 分析队列。
